@@ -115,7 +115,7 @@ impl Widget for &Game {
 }
 
 pub fn draw_ui(
-	terminal: Arc<Mutex<DefaultTerminal>>, 
+	mut terminal: DefaultTerminal, 
 	game_state: Arc<Mutex<Game>>, 
 	stop_receiver: Receiver<()>
 ) -> io::Result<()> {
@@ -127,7 +127,7 @@ pub fn draw_ui(
             _ => break,
         }
 
-        terminal.lock().unwrap().draw(|frame| {
+        terminal.draw(|frame| {
             frame.render_widget(&*BACKGROUND, frame.area());
             frame.render_widget(&*game_state.lock().unwrap(), frame.area());
         })

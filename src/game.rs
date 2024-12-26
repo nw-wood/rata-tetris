@@ -2,21 +2,16 @@ use std::fs::File;
 use std::io::{self, Read, Write};
 use dirs::home_dir;
 
+use crate::minos::Mino;
+
 const TOP_SCORE_FILENAME: &str = "top_score";
 const BOARD_WIDTH: usize = 10;
 const BOARD_HEIGHT: usize = 20;
-/* const T_BLOCK_INDEX: usize = 0;
-const J_BLOCK_INDEX: usize = 1;
-const Z_BLOCK_INDEX: usize = 2;
-const O_BLOCK_INDEX: usize = 3;
-const S_BLOCK_INDEX: usize = 4;
-const L_BLOCK_INDEX: usize = 5;
-const I_BLOCK_INDEX: usize = 6; */
 
 type BlockIndex = usize;
 type Score = u32;
 
-#[derive(Debug, Clone)]
+//#[derive(Debug, Clone)]
 pub struct Game {
     line_count: u16,
     statistics: Vec<u16>,
@@ -26,6 +21,8 @@ pub struct Game {
     board_state: Vec<Vec<u8>>,
     playing: bool,
     paused: bool,
+    current_mino: Mino,
+    next_mino: Mino,
 }
 
 impl Game {
@@ -44,6 +41,8 @@ impl Game {
             board_state: vec![vec![u8::from(0); BOARD_WIDTH]; BOARD_HEIGHT],
             playing: false,
             paused: false,
+            current_mino: Mino::new(),
+            next_mino: Mino::new(),
         }
     }
 
