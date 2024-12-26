@@ -29,7 +29,7 @@ fn run(terminal: DefaultTerminal) -> io::Result<()> {
 
     let (stop_sender, stop_receiver) = std::sync::mpsc::channel();
 
-    let game_state = Arc::new(Mutex::new(Game::new()));
+    let game_state = Game::new();
     let game_state_clone = game_state.clone();
 
     let draw_thread_handle = thread::spawn(|| -> io::Result<()> {
@@ -63,7 +63,7 @@ fn run(terminal: DefaultTerminal) -> io::Result<()> {
             }
         }
     }
-    
+
     stop_sender.send(()).unwrap();
     draw_thread_handle.join().unwrap()?;
     Ok(())

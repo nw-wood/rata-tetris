@@ -1,5 +1,8 @@
 use std::fs::File;
 use std::io::{self, Read, Write};
+use std::sync::{Arc, Mutex};
+use std::thread;
+use std::time::Duration;
 use dirs::home_dir;
 
 use crate::minos::Mino;
@@ -8,9 +11,14 @@ const TOP_SCORE_FILENAME: &str = "top_score";
 const BOARD_WIDTH: usize = 10;
 const BOARD_HEIGHT: usize = 20;
 
+const LEFT_OFFSET: (i8, i8) = (-1, 0);
+const RIGHT_OFFSET: (i8, i8) = (1, 0);
+const DOWN_OFFSET: (i8, i8) = (0, 1); //higher = further down the board
+
 type BlockIndex = usize;
 type Score = u32;
-type BoardXY = (u8, u8);
+//considering making this it's own type.. signed i8's also makes the logic a bit more simple
+type BoardXY = (i8, i8);
 
 //#[derive(Debug, Clone)]
 pub struct Game {
@@ -28,8 +36,8 @@ pub struct Game {
 }
 
 impl Game {
-    pub fn new() -> Self {
-        Self {
+    pub fn new() -> Arc<Mutex<Self>> {
+        let game = Self {
             line_count: 0,
             statistics: vec![0; 7],
             top_score: {
@@ -46,7 +54,27 @@ impl Game {
             current_mino: Mino::new(),
             next_mino: Mino::new(),
             current_mino_position: (0, 0),
-        }
+        };
+
+        let game_state = Arc::new(Mutex::new(game));
+        let game_state_timer = game_state.clone();
+
+        //thread updating game state as time passes
+        thread::spawn(move || {
+            thread::sleep(Duration::from_millis(1000));
+            loop {
+                let mut game_state = game_state_timer.lock().unwrap();
+                game_state.move_left();
+                game_state.move_right();
+            }    
+        });
+
+        game_state
+    }
+
+    fn move_mino(&mut self, change_offset: BoardXY) {
+        self.current_mino_position.0 += change_offset.0;
+        self.current_mino_position.1 += change_offset.1;
     }
 
     fn place_mino(&mut self) {
@@ -57,9 +85,11 @@ impl Game {
 
     fn check_collision(& mut self) {
         let rotation = self.current_mino.get_rotation();
-        /*work out cell collision*/
+        /*working out collision handling and game time passing logic still*/
         if false == true {
             self.place_mino();
+        } else {
+            self.move_down();
         }
     }
 
@@ -69,6 +99,10 @@ impl Game {
 
     fn increase_stat(&mut self, index: BlockIndex) {
         self.statistics[index] += 1;
+    }
+
+    fn increase_level(&mut self) {
+        self.current_level += 1;
     }
 
     fn set_top_score(&mut self) {
@@ -95,6 +129,10 @@ impl Game {
         //doesn't change self.top_score = 0; 
     }
 
+    fn move_down(&mut self) {
+        self.move_mino(DOWN_OFFSET);
+    }
+
     //input functions
     pub fn slam(&mut self) {
         if !self.playing || self.paused { return; }
@@ -107,9 +145,11 @@ impl Game {
     }
     pub fn move_left(&mut self) {
         if !self.playing || self.paused { return; }
+        self.move_mino(LEFT_OFFSET);
     }
     pub fn move_right(&mut self) {
         if !self.playing || self.paused { return; }
+        self.move_mino(RIGHT_OFFSET);
     }
     pub fn rotate_clockwise(&mut self) {
         if !self.playing || self.paused { return; }
