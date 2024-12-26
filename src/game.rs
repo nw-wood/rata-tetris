@@ -1,8 +1,9 @@
 use std::fs::File;
 use std::io::{self, Read, Write};
-use std::sync::{Arc, Mutex};
-use std::thread;
-use std::time::Duration;
+use std::sync::mpsc::{Receiver, Sender};
+use std::sync::{mpsc, Arc, Mutex};
+use std::thread::{self, JoinHandle};
+use std::time::{Duration, Instant};
 use dirs::home_dir;
 
 use crate::minos::Mino;
@@ -15,6 +16,35 @@ const LEFT_OFFSET: (i8, i8) = (-1, 0);
 const RIGHT_OFFSET: (i8, i8) = (1, 0);
 const DOWN_OFFSET: (i8, i8) = (0, 1); //higher = further down the board
 
+const SIGNAL_INCREASE: u8 = 1;
+const SIGNAL_PAUSE: u8 = 2;
+const SIGNAL_UNPAUSE: u8 = 3;
+const SIGNAL_KILL: u8 = 4;
+const SIGNAL_DROP: () = ();
+
+//'frame counts' for the level difficulties
+const GRAVITY_TABLE: [u8; 15] = [48, 43, 38, 33, 28, 23, 18, 13, 8, 6, 5, 4, 3, 2, 1];
+fn get_drop_time_duration(level: u8) -> u128 {
+    let frames = match level {
+        0 => GRAVITY_TABLE[0],
+        1 => GRAVITY_TABLE[1],
+        2 => GRAVITY_TABLE[2],
+        3 => GRAVITY_TABLE[3],
+        4 => GRAVITY_TABLE[4],
+        5 => GRAVITY_TABLE[5],
+        6 => GRAVITY_TABLE[6],
+        7 => GRAVITY_TABLE[7],
+        8 => GRAVITY_TABLE[8],
+        9 => GRAVITY_TABLE[9],
+        10..=12 => GRAVITY_TABLE[10],
+        13..=15 => GRAVITY_TABLE[11],
+        16..=18 => GRAVITY_TABLE[12],
+        19..=28 => GRAVITY_TABLE[13],
+        _ => GRAVITY_TABLE[14],
+    };
+    17 * frames as u128 //off by .33 per millisecond 🤷
+}
+
 type BlockIndex = usize;
 type Score = u32;
 //considering making this it's own type.. signed i8's also makes the logic a bit more simple
@@ -26,17 +56,61 @@ pub struct Game {
     statistics: Vec<u16>,
     top_score: u32,
     current_score: u32,
-    current_level: u16,
+    current_level: u8,
     board_state: Vec<Vec<u8>>,
     playing: bool,
     paused: bool,
     current_mino: Mino,
     current_mino_position: BoardXY,
     next_mino: Mino,
+    timer_tx: Sender<u8>,
+    pub timer_rx: Receiver<()>,
+    pub timer_handle: JoinHandle<()>,
 }
 
 impl Game {
     pub fn new() -> Arc<Mutex<Self>> {
+
+        //setup senders and receivers
+        let (game_sender, timer_receiver) = mpsc::channel();
+        let (timer_sender, game_receiver) = mpsc::channel();
+
+        //game timer
+        let handle = thread::spawn(move || {
+            let mut time = Instant::now();
+            let mut current_level = 0;
+            let mut duration = get_drop_time_duration(current_level);
+            'timer: loop {
+                let elapsed = time.elapsed().as_micros();
+                if elapsed >= duration {
+                    if let Ok(signal) =  timer_receiver.try_recv() {
+                        match signal {
+                            SIGNAL_INCREASE => {
+                                current_level += 1;
+                                duration = get_drop_time_duration(current_level);
+                            },
+                            SIGNAL_PAUSE => {
+                                loop {
+                                    thread::sleep(Duration::from_millis(250)); //recheck every quarter second
+                                    if let Ok(signal) = timer_receiver.try_recv() {
+                                        match signal {
+                                            SIGNAL_UNPAUSE => break,
+                                            SIGNAL_KILL => break 'timer,
+                                            _ => {}
+                                        }
+                                    }
+                                }
+                            }
+                            SIGNAL_KILL => break 'timer,
+                            _ => {},
+                        }
+                    }
+                    time = Instant::now();
+                    timer_sender.send(SIGNAL_DROP).unwrap();
+                }
+            }    
+        });
+
         let game = Self {
             line_count: 0,
             statistics: vec![0; 7],
@@ -54,21 +128,12 @@ impl Game {
             current_mino: Mino::new(),
             next_mino: Mino::new(),
             current_mino_position: (0, 0),
+            timer_tx: game_sender,
+            timer_rx: game_receiver,
+            timer_handle: handle,    
         };
 
         let game_state = Arc::new(Mutex::new(game));
-        let game_state_timer = game_state.clone();
-
-        //thread updating game state as time passes
-        thread::spawn(move || {
-            thread::sleep(Duration::from_millis(1000));
-            loop {
-                let mut game_state = game_state_timer.lock().unwrap();
-                game_state.move_left();
-                game_state.move_right();
-            }    
-        });
-
         game_state
     }
 
@@ -101,8 +166,9 @@ impl Game {
         self.statistics[index] += 1;
     }
 
-    fn increase_level(&mut self) {
+    fn increase_level(&mut self) -> u8 {
         self.current_level += 1;
+        self.current_level
     }
 
     fn set_top_score(&mut self) {
@@ -129,8 +195,18 @@ impl Game {
         //doesn't change self.top_score = 0; 
     }
 
-    fn move_down(&mut self) {
+    pub fn move_down(&mut self) {
         self.move_mino(DOWN_OFFSET);
+    }
+
+    pub fn update(&mut self) {
+        let mut drop_count = 0;
+        for _ in &self.timer_rx {
+            drop_count += 1;
+        }
+        for _ in 0..drop_count {
+            self.move_down();
+        }
     }
 
     //input functions

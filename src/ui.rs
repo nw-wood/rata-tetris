@@ -120,7 +120,8 @@ pub fn draw_ui(
 	stop_receiver: Receiver<()>
 ) -> io::Result<()> {
     loop {
-        thread::sleep(Duration::from_millis(100));
+        //60 frames per second hard limit
+        thread::sleep(Duration::from_millis(16));
 
         match stop_receiver.try_recv() {
             Err(std::sync::mpsc::TryRecvError::Empty) => {}, 
@@ -129,7 +130,9 @@ pub fn draw_ui(
 
         terminal.draw(|frame| {
             frame.render_widget(&*BACKGROUND, frame.area());
-            frame.render_widget(&*game_state.lock().unwrap(), frame.area());
+            let mut game = game_state.lock().unwrap();
+            game.update();
+            frame.render_widget(&*game, frame.area());
         })
         .map(|_| ())?;
     }
