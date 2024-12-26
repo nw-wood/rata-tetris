@@ -10,13 +10,18 @@ const I_BLOCK: u8 = 6;
 const MINO_TYPES: u8 = 7;
 
 type Rotation = Vec<Vec<u8>>;
+
+#[derive(Clone)]
 pub struct Mino {
     rotations: Vec<Rotation>,
-    selected_mino: u8,
+    pub selected_mino: u8,
     current_rotation: usize,
 }
 
 impl Mino {
+    pub fn get_rotation(&self) -> Rotation {
+        self.rotations[self.current_rotation].clone()
+    }
     pub fn new() -> Self {
 
         let mut rng = rand::thread_rng();
@@ -135,13 +140,16 @@ impl Mino {
             I_BLOCK => {
                 rotations = vec![
                     vec![
+                        vec![0, 0, 0, 0],
+                        vec![0, 0, 0, 0],
                         vec![1, 1, 1, 1],
+                        vec![0, 0, 0, 0],
                     ],
                     vec![
-                        vec![1],
-                        vec![1],
-                        vec![1],
-                        vec![1],
+                        vec![0, 0, 1, 0],
+                        vec![0, 0, 1, 0],
+                        vec![0, 0, 1, 0],
+                        vec![0, 0, 1, 0],
                     ],
                 ];
             },
