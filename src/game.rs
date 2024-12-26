@@ -10,6 +10,7 @@ const BOARD_HEIGHT: usize = 20;
 
 type BlockIndex = usize;
 type Score = u32;
+type BoardXY = (u8, u8);
 
 //#[derive(Debug, Clone)]
 pub struct Game {
@@ -22,6 +23,7 @@ pub struct Game {
     playing: bool,
     paused: bool,
     current_mino: Mino,
+    current_mino_position: BoardXY,
     next_mino: Mino,
 }
 
@@ -43,11 +45,22 @@ impl Game {
             paused: false,
             current_mino: Mino::new(),
             next_mino: Mino::new(),
+            current_mino_position: (0, 0),
         }
     }
 
-    fn board_insert(&mut self, to_insert: Vec<Vec<u8>>, color: u8) {
+    fn place_mino(&mut self) {
+        let type_fill = self.current_mino.selected_mino;
+        self.current_mino = self.next_mino.clone();
+        self.next_mino = Mino::new();
+    }
 
+    fn check_collision(& mut self) {
+        let rotation = self.current_mino.get_rotation();
+        /*work out cell collision*/
+        if false == true {
+            self.place_mino();
+        }
     }
 
     fn increase_lines(&mut self) {
