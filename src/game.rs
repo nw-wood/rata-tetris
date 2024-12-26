@@ -81,7 +81,8 @@ impl Game {
             let mut current_level = 0;
             let mut duration = get_drop_time_duration(current_level);
             'timer: loop {
-                let elapsed = time.elapsed().as_micros();
+                thread::sleep(Duration::from_millis(16));
+                let elapsed = time.elapsed().as_millis();
                 if elapsed >= duration {
                     if let Ok(signal) =  timer_receiver.try_recv() {
                         match signal {
@@ -134,7 +135,23 @@ impl Game {
         };
 
         let game_state = Arc::new(Mutex::new(game));
+        //println!("before game state returned...");
         game_state
+    }
+
+    pub fn update(&mut self) {
+        let mut drop_count = 0;
+        /* for _ in &self.timer_rx {
+            drop_count += 1;
+            println!("drop count incremented: {drop_count}");
+        } */
+        while !&self.timer_rx.try_recv().is_err() {
+            drop_count += 1;
+        }
+        for _ in 0..drop_count {
+            //println!("drop");
+            self.try_drop();
+        }
     }
 
     fn move_mino(&mut self, change_offset: BoardXY) {
@@ -148,13 +165,13 @@ impl Game {
         self.next_mino = Mino::new();
     }
 
-    fn check_collision(& mut self) {
+    fn try_drop(& mut self) {
         let rotation = self.current_mino.get_rotation();
         /*working out collision handling and game time passing logic still*/
         if false == true {
             self.place_mino();
         } else {
-            self.move_down();
+            //self.move_down();
         }
     }
 
@@ -197,16 +214,6 @@ impl Game {
 
     pub fn move_down(&mut self) {
         self.move_mino(DOWN_OFFSET);
-    }
-
-    pub fn update(&mut self) {
-        let mut drop_count = 0;
-        for _ in &self.timer_rx {
-            drop_count += 1;
-        }
-        for _ in 0..drop_count {
-            self.move_down();
-        }
     }
 
     //input functions

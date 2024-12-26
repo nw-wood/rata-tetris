@@ -119,10 +119,12 @@ pub fn draw_ui(
 	game_state: Arc<Mutex<Game>>, 
 	stop_receiver: Receiver<()>
 ) -> io::Result<()> {
+    let mut frame_count: usize = 0;
     loop {
         //60 frames per second hard limit
         thread::sleep(Duration::from_millis(16));
-
+        frame_count += 1;
+        //println!("frame_count: {frame_count}");
         match stop_receiver.try_recv() {
             Err(std::sync::mpsc::TryRecvError::Empty) => {}, 
             _ => break,
