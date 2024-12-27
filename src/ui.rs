@@ -25,9 +25,10 @@ pub struct CachedBackground {
     height: u16,
 }
 
+const BG_CHAR: &str = "██";
+
 impl CachedBackground {
     pub fn new() -> Self {
-        let bg_char = "██";
         let background_pattern = vec![
             vec![1, 1, 2, 1, 1, 1, 3, 3, 4, 4, 1, 1],
             vec![3, 3, 2, 2, 1, 2, 3, 3, 4, 1, 5, 1],
@@ -58,7 +59,7 @@ impl CachedBackground {
                                 7 => Style::default().fg(Color::Indexed(240)),
                                 _ => Style::default().fg(Color::Indexed(232)),
                             };
-                            Span::styled(bg_char, style)
+                            Span::styled(BG_CHAR, style)
                         })
                         .collect::<Vec<Span>>(),
                 )
@@ -110,7 +111,82 @@ impl Widget for &Game {
     where
         Self: Sized
     {
-        //render the game state
+        //so here each of these stats are going to need to be taken into consideration
+        //critically..
+        //  the 'playing' bool should control whether or not we're at the 'play game' screen
+        //      ... in addition to that when we are playing then if the game is paused then the pause screen needs rendered
+        //          so it's probably a good idea to create some screen representations
+        //
+        //  when the game is actually playing then all the elements should be drawn out
+        /*
+            line_count: u16,
+            statistics: Vec<u16>,
+            top_score: u32,
+            current_score: u32,
+            current_level: u8,
+            board_state: Vec<Vec<u8>>,
+            playing: bool,
+            paused: bool,
+            current_mino: Mino,
+            current_mino_position: BoardXY,
+            next_mino: Mino,
+        */
+
+        //it's not necessary to keep recalculating this once it's known... setup like the BACKGROUND static later
+        let screen_width = 32;
+        let screen_height = 28;
+
+        if area.width < screen_width * 2 || area.height < screen_height {
+            Paragraph::new(Line::from(format!("Terminal must be at least {} x {}!", screen_width * 2, screen_height))).render(area, buf);
+            return;
+        }
+
+        let area_center: (u16, u16) = (area.width / 2,  area.height / 2);
+        let screen = Rect::new(area_center.0 - screen_width , area_center.1 - screen_height / 2, screen_width * 2, screen_height);
+
+        //need to make a vector of lines to draw into the space
+        //a line from a vector of spans
+        let line_chars: String = (0..screen_width).map(|_| { BG_CHAR }).collect();
+
+        let screen_spans: Vec<Span> = (0..screen_height).map(|line| {
+            Span::styled(&line_chars, Style::default().bg(Color::Black).fg(Color::Black))
+        }).collect();
+
+        let lines: Vec<Line> = screen_spans.iter().map(|span| {
+            Line::from(span.clone())
+        }).collect();
+
+        let screen_space_widget = Paragraph::new(lines);
+
+        screen_space_widget.render(screen, buf);
+        //println!("draw");
+
+
+        match self.playing {
+            true => {
+                match self.paused {
+                    false => {
+                        //the user interface should be drawn
+                    }
+                    true => {
+                        //the word paused should appear in the center, and everything should be hidden
+                    },
+                }
+            },
+            false => {
+                match self.paused {
+                    false => {
+                        //render the start screen
+                        //big ole' word 'tetris', and additionally, a line of text that says "press space to play"
+                        //each of these needs to be built, and I'll have to design the characters in an editor or here or something
+                        //... lets draw a big square the size of the screen space first
+                    },
+                    true => {
+
+                    },
+                }
+            }
+        }
     }
 }
 
