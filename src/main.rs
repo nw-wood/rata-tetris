@@ -48,7 +48,14 @@ fn run(terminal: DefaultTerminal) -> io::Result<()> {
                     KeyCode::Right =>       game_state.move_right(),
                     KeyCode::PageUp =>      game_state.rotate_counter_clockwise(),
                     KeyCode::PageDown =>    game_state.rotate_clockwise(),
-                    KeyCode::Char(' ') =>   game_state.toggle_paused(),
+                    KeyCode::Char(' ') => {
+                        //key has multiple uses
+                        match game_state.playing {
+                            true => game_state.toggle_paused(),
+                            false => game_state.start_game(),
+                        }
+                        
+                    }
                     KeyCode::Char('q') => {
                         break;
                     },

@@ -11,10 +11,34 @@ const BIG_TEXT_PAUSED: &str = r#"  ██████  ██████  █�
   ██      ██  ██  ██████    ████    ██████  ████
 "#;
 
-use crossterm::style::Stylize;
+const BORDER_WIDTH_PAD: u16 = 2;
+const BORDER_HEIGHT_PAD: u16 = 1;
+
+const STATS_WIDTH: u16 = 18;
+const LINES_WIDTH: u16 = 24;
+const SCORES_WIDTH: u16 = 12;
+const NEXT_WIDTH: u16 = 8;
+const BOARD_WIDTH: u16 = 24;
+const LEVEL_WIDTH: u16 = 12;
+
+const STATS_HEIGHT: u16 = 18;
+const LINES_HEIGHT: u16 = 2;
+const SCORES_HEIGHT: u16 = 8;
+const NEXT_HEIGHT: u16 = 5;
+const BOARD_HEIGHT: u16 = 20;
+const LEVEL_HEIGHT: u16 = 4;
+
+const ELEMENTS_XY: (u16, u16) = (2, 2);
+const STATS_XY: (u16, u16) = (0, 5);
+const LINES_XY: (u16, u16) = (20, 0);
+const SCORES_XY: (u16, u16) = (46, 0);
+const NEXT_XY: (u16, u16) = (46, 11);
+const BOARD_XY: (u16, u16) = (20, 3);
+const LEVEL_XY: (u16, u16) = (46, 17);
+
 use once_cell::sync::Lazy;
 
-use crate::game::{self, Game};
+use crate::game::Game;
 
 use std::{
     io, 
@@ -24,7 +48,7 @@ use std::{
 };
 
 use ratatui::{
-    buffer::Buffer, layout::{Constraint, Direction, Layout, Rect}, style::{Color, Style, Styled}, symbols::line, text::{Line, Span, Text}, widgets::{Block, Paragraph, Widget}, DefaultTerminal
+    buffer::Buffer, layout::Rect, style::{Color, Style}, text::{Line, Span, Text}, widgets::{Block, Paragraph, Widget}, DefaultTerminal
 };
 
 pub static BACKGROUND: Lazy<CachedBackground> = Lazy::new(|| CachedBackground::new());
@@ -38,6 +62,7 @@ pub struct CachedBackground {
 const BLOCK: &str = "██";
 const SCREEN_WIDTH: u16 = 32 * 2; // x 2 since each cell is 2 chars per block
 const SCREEN_HEIGHT: u16 = 28;
+const BACKGROUND_COLOR: u8 = 234;
 
 impl CachedBackground {
     pub fn new() -> Self {
@@ -142,7 +167,7 @@ impl Widget for &Game {
         let line_blocks = (0..SCREEN_WIDTH / 2).map(|_| { BLOCK }).collect::<String>();
         let screen_space_widget = Paragraph::new(
             (0..SCREEN_HEIGHT).map(|_| {
-                Span::styled(&line_blocks, Style::default().bg(Color::Black).fg(Color::Black)
+                Span::styled(&line_blocks, Style::default().bg(Color::Black).fg(Color::Indexed(234))
             )}).map(|span| {
                 Line::from(span)
             }).collect::<Vec<Line>>()
@@ -150,19 +175,98 @@ impl Widget for &Game {
 
         //render the new widget to the screen rect
         screen_space_widget.render(screen, buf);
+        let bg_color = Color::Indexed(BACKGROUND_COLOR);
 
         match self.playing {
             true => {
                 match self.paused {
                     false => {
-                        //the user interface should be drawn
+
+                        let  stats_rect:Rect = Rect::new(
+                            screen.x + STATS_XY.0 + ELEMENTS_XY.0,
+                            screen.y + STATS_XY.1 + ELEMENTS_XY.1,
+                            BORDER_WIDTH_PAD + STATS_WIDTH,
+                             BORDER_HEIGHT_PAD + STATS_HEIGHT);
+
+                        let  lines_rect:Rect = Rect::new(
+                            screen.x + LINES_XY.0 + ELEMENTS_XY.0, 
+                            screen.y + LINES_XY.1 + ELEMENTS_XY.1,
+                            BORDER_WIDTH_PAD + LINES_WIDTH,
+                            BORDER_HEIGHT_PAD + LINES_HEIGHT);
+
+                        let scores_rect:Rect = Rect::new(
+                            screen.x + SCORES_XY.0 + ELEMENTS_XY.0, 
+                            screen.y + SCORES_XY.1 + ELEMENTS_XY.1,
+                            BORDER_WIDTH_PAD + SCORES_WIDTH,
+                            BORDER_HEIGHT_PAD + SCORES_HEIGHT);
+
+                        let   next_rect:Rect = Rect::new(
+                            screen.x + NEXT_XY.0 + ELEMENTS_XY.0, 
+                            screen.y + NEXT_XY.1 + ELEMENTS_XY.1,
+                            BORDER_WIDTH_PAD + NEXT_WIDTH,
+                            BORDER_HEIGHT_PAD + NEXT_HEIGHT);
+
+                        let  board_rect:Rect = Rect::new(
+                            screen.x + BOARD_XY.0 + ELEMENTS_XY.0, 
+                            screen.y + BOARD_XY.1 + ELEMENTS_XY.1,
+                            BORDER_WIDTH_PAD + BOARD_WIDTH,
+                            BORDER_HEIGHT_PAD + BOARD_HEIGHT);
+
+                        let  level_rect:Rect = Rect::new(
+                            screen.x + LEVEL_XY.0 + ELEMENTS_XY.0, 
+                            screen.y + LEVEL_XY.1 + ELEMENTS_XY.1,
+                            BORDER_WIDTH_PAD + LEVEL_WIDTH,
+                            BORDER_HEIGHT_PAD + LEVEL_HEIGHT);
+
+
+                        Paragraph::new("    STATISTICS    ")
+                            .block(Block::bordered())
+                            .style(Style::default()
+                                .fg(Color::White)
+                                .bg(bg_color))
+                            .render(stats_rect, buf);
+
+                        Paragraph::new("LINES")
+                            .block(Block::bordered())
+                            .style(Style::default()
+                                .fg(Color::White)
+                                .bg(bg_color))
+                            .render(lines_rect, buf);
+
+                        Paragraph::new("\nTOP\n 0 0 0 0 0 0\n\nSCORE\n 0 0 0 0 0 0")
+                            .block(Block::bordered())
+                            .style(Style::default()
+                                .fg(Color::White)
+                                .bg(bg_color))
+                            .render(scores_rect, buf);
+
+                        Paragraph::new("  NEXT  ")
+                            .block(Block::bordered())
+                            .style(Style::default()
+                                .fg(Color::White)
+                                .bg(bg_color))
+                            .render(next_rect, buf);
+
+                        Paragraph::new("")
+                            .block(Block::bordered().style(Style::default().fg(Color::White).bg(bg_color)))
+                            .style(Style::default()
+                                .fg(bg_color)
+                                .bg(bg_color))
+                            .render(board_rect, buf);
+
+                        Paragraph::new("LEVEL")
+                            .block(Block::bordered())
+                            .style(Style::default()
+                                .fg(Color::White)
+                                .bg(bg_color))
+                            .render(level_rect, buf);
                     }
                     true => {
                         //draw pause screen
                         let big_text_area = Rect::new(screen.x + 9, screen.y + 3, 46, 7);
                         let big_text_widget = Paragraph::new(Text::from(BIG_TEXT_PAUSED))
                             .block(Block::bordered())
-                            .style(Style::default().fg(Color::White).bg(Color::Black));
+                            .style(Style::default().fg(Color::White).bg(bg_color));
                         big_text_widget.render(big_text_area, buf);
                     },
                 }

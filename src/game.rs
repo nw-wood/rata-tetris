@@ -112,6 +112,9 @@ impl Game {
             }    
         });
 
+        //pause this timer right away
+        game_sender.send(SIGNAL_PAUSE).unwrap();
+
         let game = Self {
             line_count: 0,
             statistics: vec![0; 7],
@@ -137,6 +140,12 @@ impl Game {
         let game_state = Arc::new(Mutex::new(game));
         //println!("before game state returned...");
         game_state
+    }
+
+    pub fn start_game(&mut self) {
+        //triggered when the user pressed space at the main screen
+        self.playing = true;
+        self.timer_tx.send(SIGNAL_UNPAUSE).unwrap();
     }
 
     pub fn update(&mut self) {
@@ -243,6 +252,10 @@ impl Game {
     pub fn toggle_paused(&mut self) {
         //if !self.playing { return; }
         self.paused = !self.paused;
+        match self.paused {
+            true => self.timer_tx.send(SIGNAL_PAUSE).unwrap(),
+            false => self.timer_tx.send(SIGNAL_UNPAUSE).unwrap(),
+        }
     }
 }
 
