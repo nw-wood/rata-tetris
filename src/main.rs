@@ -4,7 +4,6 @@ mod minos;
 
 use std::{
     io, 
-    sync::{Arc, Mutex}, 
     thread
 };
 

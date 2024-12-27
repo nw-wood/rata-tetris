@@ -1,3 +1,17 @@
+const BIG_TEXT_TETRIS: &str = r#"  ██████  ████  ██████  ████    ██    ████  
+    ██    ██      ██    ██  ██  ██  ██      
+    ██    ████    ██    ████    ██    ████  
+    ██    ██      ██    ████    ██        ██
+    ██    ████    ██    ██  ██  ██    ████  "#;
+
+const BIG_TEXT_PAUSED: &str = r#"  ██████  ██████  ██  ██    ████    ██████  ████
+  ██  ██  ██  ██  ██  ██  ██        ██      ██  ██
+  ██████  ██████  ██  ██    ████    ████    ██  ██
+  ██      ██  ██  ██  ██        ██  ██      ██  ██
+  ██      ██  ██  ██████    ████    ██████  ████
+"#;
+
+use crossterm::style::Stylize;
 use once_cell::sync::Lazy;
 
 use crate::game::{self, Game};
@@ -10,11 +24,7 @@ use std::{
 };
 
 use ratatui::{
-    buffer::Buffer, 
-    layout::Rect, 
-    style::{Color, Style}, 
-    text::{Line, Span}, 
-    widgets::{Paragraph, Widget}, DefaultTerminal
+    buffer::Buffer, layout::{Constraint, Direction, Layout, Rect}, style::{Color, Style, Styled}, symbols::line, text::{Line, Span, Text}, widgets::{Block, Paragraph, Widget}, DefaultTerminal
 };
 
 pub static BACKGROUND: Lazy<CachedBackground> = Lazy::new(|| CachedBackground::new());
@@ -25,7 +35,9 @@ pub struct CachedBackground {
     height: u16,
 }
 
-const BG_CHAR: &str = "██";
+const BLOCK: &str = "██";
+const SCREEN_WIDTH: u16 = 32 * 2; // x 2 since each cell is 2 chars per block
+const SCREEN_HEIGHT: u16 = 28;
 
 impl CachedBackground {
     pub fn new() -> Self {
@@ -59,7 +71,7 @@ impl CachedBackground {
                                 7 => Style::default().fg(Color::Indexed(240)),
                                 _ => Style::default().fg(Color::Indexed(232)),
                             };
-                            Span::styled(BG_CHAR, style)
+                            Span::styled(BLOCK, style)
                         })
                         .collect::<Vec<Span>>(),
                 )
@@ -111,56 +123,33 @@ impl Widget for &Game {
     where
         Self: Sized
     {
-        //so here each of these stats are going to need to be taken into consideration
-        //critically..
-        //  the 'playing' bool should control whether or not we're at the 'play game' screen
-        //      ... in addition to that when we are playing then if the game is paused then the pause screen needs rendered
-        //          so it's probably a good idea to create some screen representations
-        //
-        //  when the game is actually playing then all the elements should be drawn out
-        /*
-            line_count: u16,
-            statistics: Vec<u16>,
-            top_score: u32,
-            current_score: u32,
-            current_level: u8,
-            board_state: Vec<Vec<u8>>,
-            playing: bool,
-            paused: bool,
-            current_mino: Mino,
-            current_mino_position: BoardXY,
-            next_mino: Mino,
-        */
-
-        //it's not necessary to keep recalculating this once it's known... setup like the BACKGROUND static later
-        let screen_width = 32;
-        let screen_height = 28;
-
-        if area.width < screen_width * 2 || area.height < screen_height {
-            Paragraph::new(Line::from(format!("Terminal must be at least {} x {}!", screen_width * 2, screen_height))).render(area, buf);
+        //if the terminal is too small draw a notice to the screen
+        if area.width < SCREEN_WIDTH || area.height < SCREEN_HEIGHT {
+            Paragraph::new(Line::from(format!("Terminal must be at least {} x {}!", SCREEN_WIDTH, SCREEN_HEIGHT))).render(area, buf);
             return;
         }
 
+        //build a rect for the screen space that's in the center of the terminal
         let area_center: (u16, u16) = (area.width / 2,  area.height / 2);
-        let screen = Rect::new(area_center.0 - screen_width , area_center.1 - screen_height / 2, screen_width * 2, screen_height);
+        let screen = Rect::new(
+            area_center.0 - SCREEN_WIDTH / 2,
+            area_center.1 - SCREEN_HEIGHT / 2,
+            SCREEN_WIDTH,
+            SCREEN_HEIGHT
+        );
 
-        //need to make a vector of lines to draw into the space
-        //a line from a vector of spans
-        let line_chars: String = (0..screen_width).map(|_| { BG_CHAR }).collect();
+        //build a widget out of a collection of lines built from spans made of block strings
+        let line_blocks = (0..SCREEN_WIDTH / 2).map(|_| { BLOCK }).collect::<String>();
+        let screen_space_widget = Paragraph::new(
+            (0..SCREEN_HEIGHT).map(|_| {
+                Span::styled(&line_blocks, Style::default().bg(Color::Black).fg(Color::Black)
+            )}).map(|span| {
+                Line::from(span)
+            }).collect::<Vec<Line>>()
+        );
 
-        let screen_spans: Vec<Span> = (0..screen_height).map(|line| {
-            Span::styled(&line_chars, Style::default().bg(Color::Black).fg(Color::Black))
-        }).collect();
-
-        let lines: Vec<Line> = screen_spans.iter().map(|span| {
-            Line::from(span.clone())
-        }).collect();
-
-        let screen_space_widget = Paragraph::new(lines);
-
+        //render the new widget to the screen rect
         screen_space_widget.render(screen, buf);
-        //println!("draw");
-
 
         match self.playing {
             true => {
@@ -169,20 +158,26 @@ impl Widget for &Game {
                         //the user interface should be drawn
                     }
                     true => {
-                        //the word paused should appear in the center, and everything should be hidden
+                        //draw pause screen
+                        let big_text_area = Rect::new(screen.x + 9, screen.y + 3, 46, 7);
+                        let big_text_widget = Paragraph::new(Text::from(BIG_TEXT_PAUSED))
+                            .block(Block::bordered())
+                            .style(Style::default().fg(Color::White).bg(Color::Black));
+                        big_text_widget.render(big_text_area, buf);
                     },
                 }
             },
             false => {
                 match self.paused {
                     false => {
-                        //render the start screen
-                        //big ole' word 'tetris', and additionally, a line of text that says "press space to play"
-                        //each of these needs to be built, and I'll have to design the characters in an editor or here or something
-                        //... lets draw a big square the size of the screen space first
+                        //draw start screen
+                        let big_text_area = Rect::new(screen.x + 9, screen.y + 3, 46, 7);
+                        let big_text_widget = Paragraph::new(Text::from(BIG_TEXT_TETRIS))
+                            .block(Block::bordered())
+                            .style(Style::default().fg(Color::White).bg(Color::Black));
+                        big_text_widget.render(big_text_area, buf);
                     },
                     true => {
-
                     },
                 }
             }

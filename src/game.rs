@@ -241,7 +241,7 @@ impl Game {
         if !self.playing || self.paused { return; }
     }
     pub fn toggle_paused(&mut self) {
-        if !self.playing { return; }
+        //if !self.playing { return; }
         self.paused = !self.paused;
     }
 }
