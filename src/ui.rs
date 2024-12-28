@@ -193,6 +193,7 @@ pub fn draw_ui(
 
 fn build_element_rects(area: &Rect) -> Vec<Rect> {
     let area_center = (area.width / 2, area.height / 2);
+    let mut rects: Vec<Rect> = vec![];
 
     let screen = Rect::new(
         area_center.0 - SCREEN_WIDTH / 2,
@@ -208,24 +209,15 @@ fn build_element_rects(area: &Rect) -> Vec<Rect> {
         BORDER_HEIGHT_PAD + height,
     );
 
-    let stats_rect = create_rect(STATS_XY, STATS_WIDTH, STATS_HEIGHT);
-    let lines_rect = create_rect(LINES_XY, LINES_WIDTH, LINES_HEIGHT);
-    let scores_rect = create_rect(SCORES_XY, SCORES_WIDTH, SCORES_HEIGHT);
-    let next_rect = create_rect(NEXT_XY, NEXT_WIDTH, NEXT_HEIGHT);
-    let board_rect = create_rect(BOARD_XY, BOARD_WIDTH, BOARD_HEIGHT);
-    let level_rect = create_rect(LEVEL_XY, LEVEL_WIDTH, LEVEL_HEIGHT);
-    let big_text_rect = create_rect(BIG_TEXT_XY, BIG_TEXT_WIDTH, BIG_TEXT_HEIGHT);
+    rects.push(create_rect(STATS_XY, STATS_WIDTH, STATS_HEIGHT));
+    rects.push(create_rect(LINES_XY, LINES_WIDTH, LINES_HEIGHT));
+    rects.push(create_rect(SCORES_XY, SCORES_WIDTH, SCORES_HEIGHT));
+    rects.push(create_rect(NEXT_XY, NEXT_WIDTH, NEXT_HEIGHT));
+    rects.push(create_rect(BOARD_XY, BOARD_WIDTH, BOARD_HEIGHT));
+    rects.push(create_rect(LEVEL_XY, LEVEL_WIDTH, LEVEL_HEIGHT));
+    rects.push(create_rect(BIG_TEXT_XY, BIG_TEXT_WIDTH, BIG_TEXT_HEIGHT));
 
-    vec![
-        stats_rect, 
-        level_rect, 
-        board_rect, 
-        next_rect, 
-        scores_rect, 
-        lines_rect, 
-        big_text_rect, 
-        screen,
-    ]
+    rects
 }
 
 fn draw_element(text: &str, rect: &Rect, block: &Block, style: &Style, buf: &mut Buffer) {
