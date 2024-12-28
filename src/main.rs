@@ -1,6 +1,7 @@
 mod ui;
 mod game;
 mod minos;
+mod ui_consts;
 
 use std::{
     io, 
@@ -54,7 +55,6 @@ fn run(terminal: DefaultTerminal) -> io::Result<()> {
                             true => game_state.toggle_paused(),
                             false => game_state.start_game(),
                         }
-                        
                     }
                     KeyCode::Char('q') => {
                         break;
