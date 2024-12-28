@@ -12,12 +12,7 @@ use std::{
 };
 
 use ratatui::{
-    buffer::Buffer,
-    layout::Rect,
-    style::{Color, Style},
-    text::{Line, Span},
-    widgets::{Block, Paragraph, Widget}, 
-    DefaultTerminal
+    buffer::Buffer, layout::Rect, style::{Color, Style}, symbols::line, text::{Line, Span}, widgets::{Block, Paragraph, Widget}, DefaultTerminal
 };
 
 pub static BACKGROUND: Lazy<CachedBackground> = Lazy::new(|| CachedBackground::new());
@@ -118,58 +113,50 @@ impl Widget for &Game {
             return;
         }
 
-        //build a rect for the screen space that's in the center of the terminal
-        let area_center: (u16, u16) = (area.width / 2,  area.height / 2);
-        let screen = Rect::new(
-            area_center.0 - SCREEN_WIDTH / 2,
-            area_center.1 - SCREEN_HEIGHT / 2,
-            SCREEN_WIDTH,
-            SCREEN_HEIGHT
-        );
-
-        //build a widget out of a collection of lines built from spans made of block strings
-        let line_blocks = (0..SCREEN_WIDTH / 2).map(|_| { BLOCK }).collect::<String>();
-        let screen_space_widget = Paragraph::new(
-            (0..SCREEN_HEIGHT).map(|_| {
-                Span::styled(&line_blocks, Style::default().bg(Color::Black).fg(Color::Indexed(234))
-            )}).map(|span| {
-                Line::from(span)
-            }).collect::<Vec<Line>>()
-        );
-
-        //render the new widget to the screen rect
-        screen_space_widget.render(screen, buf);
+        //build all the element rects based on the screen
+        let elements = build_element_rects(&area);
         
+        //colors
         let bg_color = Color::Indexed(BACKGROUND_COLOR);
+
+        //borders
         let block = Block::bordered();
-        let style = Style::default().fg(Color::White).bg(bg_color);
+        let board_block = Block::bordered().style(Style::default().fg(Color::White).bg(bg_color));
 
-        let elements = build_element_rects(&screen);
-
+        //styling
+        let board_style = Style::default().fg(bg_color).bg(bg_color);
+        let screen_style = Style::default().fg(bg_color).bg(bg_color);
+        let element_style = Style::default().fg(Color::White).bg(bg_color);
+        
+        //draw screen
+        draw_element(PRECALC_SCREEN, &elements[RECT_SCREEN], &block, &screen_style, buf);
+        
         match self.playing {
             true => {
                 match self.paused {
                     false => {
-                        let board_block = Block::bordered().style(Style::default().fg(Color::White).bg(bg_color));
-                        let board_style = Style::default().fg(bg_color).bg(bg_color);
+                        //draw screen elements
                         draw_element("", &elements[RECT_BOARD], &board_block, &board_style, buf);
-                        draw_element(TEXT_STATS, &elements[RECT_STATS], &block, &style, buf);
-                        draw_element(TEXT_LINES, &elements[RECT_LINES], &block, &style, buf);
-                        draw_element(TEXT_SCORES, &elements[RECT_SCORES], &block, &style, buf);
-                        draw_element(TEXT_NEXT, &elements[RECT_NEXT], &block, &style, buf);
-                        draw_element(TEXT_LEVEL, &elements[RECT_LEVEL], &block, &style, buf);
+                        draw_element(TEXT_STATS, &elements[RECT_STATS], &block, &element_style, buf);
+                        draw_element(TEXT_LINES, &elements[RECT_LINES], &block, &element_style, buf);
+                        draw_element(TEXT_SCORES, &elements[RECT_SCORES], &block, &element_style, buf);
+                        draw_element(TEXT_NEXT, &elements[RECT_NEXT], &block, &element_style, buf);
+                        draw_element(TEXT_LEVEL, &elements[RECT_LEVEL], &block, &element_style, buf);
                     }
                     true => {
-                        draw_element(BIG_TEXT_PAUSED, &elements[RECT_BIG_TEXT], &block, &style, buf);
+                        //draw the pause screen
+                        draw_element(BIG_TEXT_PAUSED, &elements[RECT_BIG_TEXT], &block, &element_style, buf);
                     },
                 }
             },
             false => {
                 match self.paused {
                     false => {
-                        draw_element(BIG_TEXT_TETRIS, &elements[RECT_BIG_TEXT], &block, &style, buf);
+                        //draw the start screen
+                        draw_element(BIG_TEXT_TETRIS, &elements[RECT_BIG_TEXT], &block, &element_style, buf);
                     },
                     true => {
+                        //draw the high score screen
                     },
                 }
             }
@@ -204,51 +191,41 @@ pub fn draw_ui(
     Ok(())
 }
 
-fn build_element_rects(screen: &Rect) -> Vec<Rect> {
+fn build_element_rects(area: &Rect) -> Vec<Rect> {
+    let area_center = (area.width / 2, area.height / 2);
 
-    let  stats_rect:Rect = Rect::new(
-        screen.x + STATS_XY.0 + ELEMENTS_XY.0,
-        screen.y + STATS_XY.1 + ELEMENTS_XY.1,
-        BORDER_WIDTH_PAD + STATS_WIDTH,
-         BORDER_HEIGHT_PAD + STATS_HEIGHT);
+    let screen = Rect::new(
+        area_center.0 - SCREEN_WIDTH / 2,
+        area_center.1 - SCREEN_HEIGHT / 2,
+        SCREEN_WIDTH,
+        SCREEN_HEIGHT,
+    );
 
-    let  lines_rect:Rect = Rect::new(
-        screen.x + LINES_XY.0 + ELEMENTS_XY.0, 
-        screen.y + LINES_XY.1 + ELEMENTS_XY.1,
-        BORDER_WIDTH_PAD + LINES_WIDTH,
-        BORDER_HEIGHT_PAD + LINES_HEIGHT);
+    let create_rect = |xy: (u16, u16), width: u16, height: u16| Rect::new(
+        screen.x + xy.0 + ELEMENTS_XY.0,
+        screen.y + xy.1 + ELEMENTS_XY.1,
+        BORDER_WIDTH_PAD + width,
+        BORDER_HEIGHT_PAD + height,
+    );
 
-    let scores_rect:Rect = Rect::new(
-        screen.x + SCORES_XY.0 + ELEMENTS_XY.0, 
-        screen.y + SCORES_XY.1 + ELEMENTS_XY.1,
-        BORDER_WIDTH_PAD + SCORES_WIDTH,
-        BORDER_HEIGHT_PAD + SCORES_HEIGHT);
+    let stats_rect = create_rect(STATS_XY, STATS_WIDTH, STATS_HEIGHT);
+    let lines_rect = create_rect(LINES_XY, LINES_WIDTH, LINES_HEIGHT);
+    let scores_rect = create_rect(SCORES_XY, SCORES_WIDTH, SCORES_HEIGHT);
+    let next_rect = create_rect(NEXT_XY, NEXT_WIDTH, NEXT_HEIGHT);
+    let board_rect = create_rect(BOARD_XY, BOARD_WIDTH, BOARD_HEIGHT);
+    let level_rect = create_rect(LEVEL_XY, LEVEL_WIDTH, LEVEL_HEIGHT);
+    let big_text_rect = create_rect(BIG_TEXT_XY, BIG_TEXT_WIDTH, BIG_TEXT_HEIGHT);
 
-    let   next_rect:Rect = Rect::new(
-        screen.x + NEXT_XY.0 + ELEMENTS_XY.0, 
-        screen.y + NEXT_XY.1 + ELEMENTS_XY.1,
-        BORDER_WIDTH_PAD + NEXT_WIDTH,
-        BORDER_HEIGHT_PAD + NEXT_HEIGHT);
-
-    let  board_rect:Rect = Rect::new(
-        screen.x + BOARD_XY.0 + ELEMENTS_XY.0, 
-        screen.y + BOARD_XY.1 + ELEMENTS_XY.1,
-        BORDER_WIDTH_PAD + BOARD_WIDTH,
-        BORDER_HEIGHT_PAD + BOARD_HEIGHT);
-
-    let  level_rect:Rect = Rect::new(
-        screen.x + LEVEL_XY.0 + ELEMENTS_XY.0, 
-        screen.y + LEVEL_XY.1 + ELEMENTS_XY.1,
-        BORDER_WIDTH_PAD + LEVEL_WIDTH,
-        BORDER_HEIGHT_PAD + LEVEL_HEIGHT);
-
-    let big_text_rect = Rect::new(
-        screen.x + 9, 
-        screen.y + 3, 
-        46, 
-        7);
-
-    vec![stats_rect, level_rect, board_rect, next_rect, scores_rect, lines_rect, big_text_rect]
+    vec![
+        stats_rect, 
+        level_rect, 
+        board_rect, 
+        next_rect, 
+        scores_rect, 
+        lines_rect, 
+        big_text_rect, 
+        screen,
+    ]
 }
 
 fn draw_element(text: &str, rect: &Rect, block: &Block, style: &Style, buf: &mut Buffer) {
