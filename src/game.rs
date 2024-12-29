@@ -38,8 +38,9 @@ pub struct Game {
     pub current_score: u32,
     pub current_level: u8,
     pub board_state: Vec<Vec<u8>>,
-    pub playing: bool,
-    pub paused: bool,
+   /*  pub playing: bool,
+    pub paused: bool, */
+    pub game_state: GameState,
     pub current_mino: Mino,
     pub current_mino_position: BoardXY,
     pub next_mino: Mino,
@@ -93,7 +94,7 @@ impl Game {
         });
 
         //pause this timer right away
-        let start_mino = Mino::new(&NO_BLOCK);
+        let new_mino = Mino::new(&NO_BLOCK);
         game_sender.send(SIGNAL_PAUSE).unwrap();
 
         let game = Self {
@@ -108,11 +109,10 @@ impl Game {
             current_level: 0,
             current_score: 0,
             board_state: vec![vec![u8::from(0); GAME_BOARD_WIDTH]; GAME_BOARD_HEIGHT],
-            playing: false,
-            paused: false,
-            next_mino: Mino::new(&start_mino.selected_mino),
-            current_mino_position: start_mino.start_offset,
-            current_mino: start_mino,
+            game_state: STATE_START_SCREEN,
+            next_mino: Mino::new(&new_mino.selected_mino),
+            current_mino_position: new_mino.start_offset,
+            current_mino: new_mino,
             timer_tx: game_sender,
             timer_rx: game_receiver,
             timer_handle: handle,    
@@ -123,8 +123,15 @@ impl Game {
     }
 
     pub fn start_game(&mut self) {
-        self.playing = true;
+        self.game_state = STATE_PLAYING;
         self.timer_tx.send(SIGNAL_UNPAUSE).unwrap();
+    }
+    pub fn new_game(&mut self) {
+        self.current_level = 0;
+        self.line_count = 0;
+        self.statistics = vec![0; 7];
+        self.current_score = 0;
+        self.start_game();
     }
 
     pub fn update(&mut self) {
@@ -159,7 +166,20 @@ impl Game {
                     } else if board_y_pos > 20 {//floor limit
                         return true;
                     } else {
-                        return false;
+                        
+                        let mut current_pos = new_position.clone();
+                        current_pos.0 += cell_x as i8 * 2;
+                        current_pos.1 += cell_y as i8 - 1;
+                        current_pos.0 /= 2;
+                        
+                        
+                        if self.board_state[current_pos.1.max(0) as usize][current_pos.0 as usize] != 0 {
+                            return true;    
+                        }
+                        else {
+                            return false;
+                        }
+                        //return false;
                     }
                     //there is still the limit to consider if a cell occupies the same space as a cell in the board
                 }
@@ -168,15 +188,31 @@ impl Game {
     }
     fn move_mino(&mut self, change_offset: BoardXY) {
         if !self.collision(change_offset, self.current_mino.get_rotation()) {
+            //println!("move: {}, {}", change_offset.0, change_offset.1);
             self.current_mino_position.0 += change_offset.0;
             self.current_mino_position.1 += change_offset.1;
         } else if change_offset == DOWN_OFFSET {
             //now the mino needs placed
             self.place();
-            //self.check_lines();
+            self.check_rows();
             self.new_mino();
+            if self.collision(DOWN_OFFSET, self.current_mino.get_rotation()) {
+                self.game_over();
+            }
         }
     }
+    fn check_rows(&mut self) {
+        let state = self.board_state.clone();
+        let mut count = 0;
+        state.iter().enumerate().rev().for_each(|(index, row)| {
+            if row.iter().all(|cell| *cell != 0) {
+                self.board_state.remove(index);
+                count += 1;
+            }
+        });
+        (0..count).for_each(|_| { self.board_state.insert(0, vec![u8::from(0); GAME_BOARD_WIDTH]);});
+    }
+
     fn new_mino(&mut self) {
         self.current_mino = self.next_mino.clone();
         self.next_mino = Mino::new(&self.next_mino.selected_mino);
@@ -185,7 +221,6 @@ impl Game {
     }
 
     fn place(&mut self) {
-        
         let mino_state = self.current_mino.get_rotation();
         mino_state.iter().enumerate().for_each(|(cell_y, row)| {
             row.iter().enumerate().for_each(|(cell_x, val)| {
@@ -194,11 +229,12 @@ impl Game {
                     current_pos.0 += cell_x as i8 * 2;
                     current_pos.1 += cell_y as i8 - 1;
                     current_pos.0 /= 2;
-                    self.board_state[current_pos.1 as usize][current_pos.0 as usize] = self.current_mino.selected_mino;
+                    self.board_state[current_pos.1.max(0) as usize][current_pos.0 as usize] = self.current_mino.selected_mino;
                 }
             });
         });
     }
+    
     fn rotate_mino(&mut self, direction: u8) {
         let next_rotation = self.current_mino.next_rotation(direction).clone();
         if !self.collision(NO_OFFSET, &next_rotation) {
@@ -206,23 +242,23 @@ impl Game {
         }
     }
     pub fn move_down(&mut self) {
-        if !self.playing || self.paused { return; }
+        if self.game_state != STATE_PLAYING { return; }
         self.move_mino(DOWN_OFFSET);
     }
     pub fn move_left(&mut self) {
-        if !self.playing || self.paused { return; }
+        if self.game_state != STATE_PLAYING { return; }
         self.move_mino(LEFT_OFFSET);
     }
     pub fn move_right(&mut self) {
-        if !self.playing || self.paused { return; }
+        if self.game_state != STATE_PLAYING { return; }
         self.move_mino(RIGHT_OFFSET);
     }
     pub fn rotate_right(&mut self) {
-        if !self.playing || self.paused { return; }
+        if self.game_state != STATE_PLAYING { return; }
         self.rotate_mino(ROT_RIGHT);
     }
     pub fn rotate_left(&mut self) {
-        if !self.playing || self.paused { return; }
+        if self.game_state != STATE_PLAYING { return; }
         self.rotate_mino(ROT_LEFT);
     }
 
@@ -248,36 +284,38 @@ impl Game {
     }
 
     fn game_over(&mut self) {
-        self.current_level = 0;
-        self.line_count = 0;
-        self.statistics = vec![0; 7];
-
+        self.game_state = STATE_GAME_OVER;
+        self.timer_tx.send(SIGNAL_PAUSE).unwrap();
+        self.board_state = vec![vec![u8::from(0); GAME_BOARD_WIDTH]; GAME_BOARD_HEIGHT];
+        
         if self.top_score < self.current_score {
             if let Err(e) = save_top_score(self.current_score) {
                 println!("couldn't save top score file: {e}");
             }
             self.top_score = self.current_score;
         }
-
-        self.current_score = 0;
-        //doesn't change self.top_score = 0; 
     }
     //input functions
     pub fn slam(&mut self) {
-        if !self.playing || self.paused { return; }
+        if self.game_state != STATE_PLAYING { return; }
     }
     pub fn drop_speed_faster(&mut self) {
-        if !self.playing || self.paused { return; }
+        if self.game_state != STATE_PLAYING { return; }
     }
     pub fn drop_speed_normal(&mut self) {
-        if !self.playing || self.paused { return; }
+        if self.game_state != STATE_PLAYING { return; }
     }
     pub fn toggle_paused(&mut self) {
-        //if !self.playing { return; }
-        self.paused = !self.paused;
-        match self.paused {
-            true => self.timer_tx.send(SIGNAL_PAUSE).unwrap(),
-            false => self.timer_tx.send(SIGNAL_UNPAUSE).unwrap(),
+        match self.game_state {
+            STATE_PAUSED => {
+                self.game_state = STATE_PLAYING;
+                self.timer_tx.send(SIGNAL_UNPAUSE).unwrap()
+            },
+            STATE_PLAYING => {
+                self.game_state = STATE_PAUSED;
+                self.timer_tx.send(SIGNAL_PAUSE).unwrap();
+            },
+            _ => {}
         }
     }
 }
