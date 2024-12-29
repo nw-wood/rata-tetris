@@ -8,6 +8,7 @@ use std::{
     thread
 };
 
+use consts::{STATE_GAME_OVER, STATE_PAUSED, STATE_PLAYING, STATE_START_SCREEN};
 use ratatui::{
     crossterm::event::{self, Event, KeyCode, KeyEventKind},
     DefaultTerminal,
@@ -29,31 +30,34 @@ fn run(terminal: DefaultTerminal) -> io::Result<()> {
 
     let (stop_sender, stop_receiver) = std::sync::mpsc::channel();
 
-    let game_state = Game::new();
-    let game_state_clone = game_state.clone();
+    let game = Game::new();
+    let game_clone = game.clone();
 
     let draw_thread_handle = thread::spawn(|| -> io::Result<()> {
         println!("hello from draw thread...");
-        draw_ui(terminal, game_state_clone, stop_receiver)?;
+        draw_ui(terminal, game_clone, stop_receiver)?;
         Ok(())
     });
 
     loop {
         if let Event::Key(key) = event::read()? {
             if key.kind == KeyEventKind::Press {
-                let mut game_state = game_state.lock().unwrap();
+                let mut game = game.lock().unwrap();
                 match key.code {
-                    KeyCode::Up =>          game_state.slam(),
-                    KeyCode::Down =>        game_state.drop_speed_faster(),
-                    KeyCode::Left =>        game_state.move_left(),
-                    KeyCode::Right =>       game_state.move_right(),
-                    KeyCode::PageUp =>      game_state.rotate_left(),
-                    KeyCode::PageDown =>    game_state.rotate_right(),
+                    KeyCode::Up =>          game.slam(),
+                    KeyCode::Down =>        game.drop_speed_faster(),
+                    KeyCode::Left =>        game.move_left(),
+                    KeyCode::Right =>       game.move_right(),
+                    KeyCode::PageUp =>      game.rotate_left(),
+                    KeyCode::PageDown =>    game.rotate_right(),
                     KeyCode::Char(' ') => {
                         //key has multiple uses
-                        match game_state.playing {
-                            true => game_state.toggle_paused(),
-                            false => game_state.start_game(),
+                        match game.game_state {
+                            STATE_START_SCREEN => game.start_game(),
+                            STATE_PAUSED => game.toggle_paused(),
+                            STATE_PLAYING => game.toggle_paused(),
+                            STATE_GAME_OVER => game.new_game(),
+                            _ => {}
                         }
                     }
                     KeyCode::Char('q') => {
@@ -64,7 +68,7 @@ fn run(terminal: DefaultTerminal) -> io::Result<()> {
             }
             else if key.kind == KeyEventKind::Release {
                 match key.code {
-                    KeyCode::Down => game_state.lock().unwrap().drop_speed_normal(),
+                    KeyCode::Down => game.lock().unwrap().drop_speed_normal(),
                     _ => {}
                 }
             }
