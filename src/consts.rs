@@ -2,6 +2,19 @@
 pub type Rotation = Vec<Vec<u8>>;
 pub type Score = u32;
 pub type BoardXY = (i8, i8);
+pub type BlockIndex = usize;
+
+pub const J_BLOCK: u8 = 1;
+pub const Z_BLOCK: u8 = 2;
+pub const O_BLOCK: u8 = 3;
+pub const S_BLOCK: u8 = 4;
+pub const L_BLOCK: u8 = 5;
+pub const I_BLOCK: u8 = 6;
+pub const T_BLOCK: u8 = 7;
+
+pub const REROLL: u8 = 0;
+pub const MINO_TYPES: u8 = 8;
+pub const NO_BLOCK: u8 = 8;
 
 pub const TOP_SCORE_FILENAME: &str = "top_score";
 
@@ -27,7 +40,8 @@ pub const SIGNAL_KILL: u8 = 4;
 pub const SIGNAL_DROP: () = ();
 
 //frame counts for level difficulty
-pub const GRAVITY_TABLE: [u8; 15] = [48, 43, 38, 33, 28, 23, 18, 13, 8, 6, 5, 4, 3, 2, 1];
+//48 (level 1 value saved for later... 5 frames is not the level 1 speed)
+pub const GRAVITY_TABLE: [u8; 15] = [5, 43, 38, 33, 28, 23, 18, 13, 8, 6, 5, 4, 3, 2, 1];
 
 
 //user interface styling, text, borders, and rect identifiers - etc...
@@ -76,10 +90,10 @@ pub const BORDER_WIDTH_PAD: u16 = 2;
 pub const BORDER_HEIGHT_PAD: u16 = 1;
 
 pub const STATS_WIDTH: u16 = 18;
-pub const LINES_WIDTH: u16 = 24;
+pub const LINES_WIDTH: u16 = 20;
 pub const SCORES_WIDTH: u16 = 12;
 pub const NEXT_WIDTH: u16 = 8;
-pub const BOARD_WIDTH: u16 = 24;
+pub const BOARD_WIDTH: u16 = 20;
 pub const LEVEL_WIDTH: u16 = 12;
 pub const BIG_TEXT_WIDTH: u16 = 50;
 
@@ -87,17 +101,17 @@ pub const STATS_HEIGHT: u16 = 18;
 pub const LINES_HEIGHT: u16 = 2;
 pub const SCORES_HEIGHT: u16 = 8;
 pub const NEXT_HEIGHT: u16 = 5;
-pub const BOARD_HEIGHT: u16 = 20;
+pub const BOARD_HEIGHT: u16 = 21;
 pub const LEVEL_HEIGHT: u16 = 2;
 pub const BIG_TEXT_HEIGHT: u16 = 6;
 
 pub const ELEMENTS_XY: (u16, u16) = (2, 2);
-pub const STATS_XY: (u16, u16) = (0, 5);
-pub const LINES_XY: (u16, u16) = (20, 0);
-pub const SCORES_XY: (u16, u16) = (46, 0);
-pub const NEXT_XY: (u16, u16) = (46, 11);
-pub const BOARD_XY: (u16, u16) = (20, 3);
-pub const LEVEL_XY: (u16, u16) = (46, 17);
+pub const STATS_XY: (u16, u16) = (2, 5);
+pub const LINES_XY: (u16, u16) = (22, 0);
+pub const SCORES_XY: (u16, u16) = (44, 0);
+pub const NEXT_XY: (u16, u16) = (44, 11);
+pub const BOARD_XY: (u16, u16) = (22, 3);
+pub const LEVEL_XY: (u16, u16) = (44, 17);
 pub const BIG_TEXT_XY: (u16, u16) = (5, 3);
 
 pub const TEXT_STATS: &str = "    STATISTICS    ";
