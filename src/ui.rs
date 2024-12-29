@@ -107,41 +107,52 @@ impl Widget for &Game {
     where
         Self: Sized
     {
-        //if the terminal is too small draw a notice to the screen
         if area.width < SCREEN_WIDTH || area.height < SCREEN_HEIGHT {
             Paragraph::new(Line::from(format!("Terminal must be at least {} x {}!", SCREEN_WIDTH, SCREEN_HEIGHT))).render(area, buf);
             return;
         }
 
-        //build all the element rects based on the screen
         let elements = build_element_rects(&area);
-        
-        //colors
         let bg_color = Color::Indexed(BACKGROUND_COLOR);
 
-        //borders
         let block = Block::bordered();
         let board_block = Block::bordered().style(Style::default().fg(Color::White).bg(bg_color));
 
-        //styling
         let board_style = Style::default().fg(bg_color).bg(bg_color);
         let screen_style = Style::default().fg(bg_color).bg(bg_color);
         let element_style = Style::default().fg(Color::White).bg(bg_color);
+        let cell_style = Style::default().fg(Color::White);
         
-        //draw screen
         draw_element(PRECALC_SCREEN, &elements[RECT_SCREEN], &block, &screen_style, buf);
         
         match self.playing {
             true => {
                 match self.paused {
                     false => {
-                        //draw screen elements
                         draw_element("", &elements[RECT_BOARD], &board_block, &board_style, buf);
                         draw_element(TEXT_STATS, &elements[RECT_STATS], &block, &element_style, buf);
                         draw_element(TEXT_LINES, &elements[RECT_LINES], &block, &element_style, buf);
                         draw_element(TEXT_SCORES, &elements[RECT_SCORES], &block, &element_style, buf);
                         draw_element(TEXT_NEXT, &elements[RECT_NEXT], &block, &element_style, buf);
                         draw_element(TEXT_LEVEL, &elements[RECT_LEVEL], &block, &element_style, buf);
+
+                        let mino = &self.current_mino;
+                        let mino_cells = mino.get_rotation();
+
+                        mino_cells.iter().enumerate().for_each(|(y, row)| {
+                            row.iter().enumerate().for_each(|(x, cell_value)| {
+                                if *cell_value != 0 {
+                                    let board_rect = &elements[RECT_BOARD];
+                                    let cell_screen_position = (board_rect.x as i8 + self.current_mino_position.0, board_rect.y as i8 + self.current_mino_position.1);
+                                    let cell_x_pos = (x as i8* 2) + cell_screen_position.0 + 1;
+                                    let cell_y_pos = y as i8 + cell_screen_position.1;
+                                    if cell_y_pos <= board_rect.y as i8 { return; }
+                                    let cell_rect = Rect::new(cell_x_pos as u16, cell_y_pos as u16, 2, 1);
+                                    Paragraph::new(BLOCK).style(cell_style).render(cell_rect, buf);
+                                }
+                            });
+                        });
+
                     }
                     true => {
                         //draw the pause screen
@@ -216,6 +227,7 @@ fn build_element_rects(area: &Rect) -> Vec<Rect> {
     rects.push(create_rect(BOARD_XY, BOARD_WIDTH, BOARD_HEIGHT));
     rects.push(create_rect(LEVEL_XY, LEVEL_WIDTH, LEVEL_HEIGHT));
     rects.push(create_rect(BIG_TEXT_XY, BIG_TEXT_WIDTH, BIG_TEXT_HEIGHT));
+    rects.push(screen);
 
     rects
 }
