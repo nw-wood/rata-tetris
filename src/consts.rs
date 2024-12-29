@@ -12,6 +12,12 @@ pub const L_BLOCK: u8 = 5;
 pub const I_BLOCK: u8 = 6;
 pub const T_BLOCK: u8 = 7;
 
+pub const STATE_PLAYING: u8 = 0;
+pub const STATE_PAUSED: u8 = 1;
+pub const STATE_GAME_OVER: u8 = 2;
+pub const STATE_START_SCREEN: u8 = 3;
+pub type GameState = u8;
+
 pub const REROLL: u8 = 0;
 pub const MINO_TYPES: u8 = 8;
 pub const NO_BLOCK: u8 = 8;
@@ -41,7 +47,7 @@ pub const SIGNAL_DROP: () = ();
 
 //frame counts for level difficulty
 //48 (level 1 value saved for later... 5 frames is not the level 1 speed)
-pub const GRAVITY_TABLE: [u8; 15] = [5, 43, 38, 33, 28, 23, 18, 13, 8, 6, 5, 4, 3, 2, 1];
+pub const GRAVITY_TABLE: [u8; 15] = [1, 43, 38, 33, 28, 23, 18, 13, 8, 6, 5, 4, 3, 2, 1];
 
 
 //user interface styling, text, borders, and rect identifiers - etc...
@@ -57,6 +63,21 @@ pub const BIG_TEXT_PAUSED: &str = r#" ██████  ██████  �
  ██      ██  ██  ██  ██        ██  ██      ██  ██ 
  ██      ██  ██  ██████    ████    ██████  ████   
 "#;
+
+pub const GAME_OVER_TEXT: &str = 
+r#"   ████      ██      ██  ██    ██████             
+ ██        ██  ██  ██  ██  ██  ██                 
+ ██  ████  ██████  ██      ██  ████               
+ ██    ██  ██  ██  ██      ██  ██                 
+   ████    ██  ██  ██      ██  ██████             
+                                                  
+               ██    ██  ██  ██████  ██████    ██ 
+             ██  ██  ██  ██  ██      ██    ██  ██ 
+             ██  ██  ██  ██  ████    ██    ██  ██ 
+             ██  ██  ██  ██  ██      ██████       
+               ██      ██    ██████  ██    ██  ██ 
+"#;
+pub const CONTROLS_TEXT: &str = " start: space quit: q rot: pgup/dn move: ←→ slam: ↑ drop: ↓"; 
 
 pub const PRECALC_SCREEN: &str = r#"████████████████████████████████████████████████████████████████
 ████████████████████████████████████████████████████████████████
@@ -86,33 +107,60 @@ pub const PRECALC_SCREEN: &str = r#"██████████████�
 ████████████████████████████████████████████████████████████████
 ████████████████████████████████████████████████████████████████"#;
 
+
+
 pub const BORDER_WIDTH_PAD: u16 = 2;
 pub const BORDER_HEIGHT_PAD: u16 = 1;
 
+//remember* when adding rects width, height, xy, and rect below - remember to push the rect into elements in ui!
+pub const CONTROLS_WIDTH: u16 = SCREEN_WIDTH - 7;
+pub const CONTROLS_HEIGHT: u16 = 0;
+pub const CONTROL_XY: (u16, u16) = (0, SCREEN_HEIGHT - 2);
+
 pub const STATS_WIDTH: u16 = 18;
-pub const LINES_WIDTH: u16 = 20;
-pub const SCORES_WIDTH: u16 = 12;
-pub const NEXT_WIDTH: u16 = 8;
-pub const BOARD_WIDTH: u16 = 20;
-pub const LEVEL_WIDTH: u16 = 12;
-pub const BIG_TEXT_WIDTH: u16 = 50;
-
 pub const STATS_HEIGHT: u16 = 18;
-pub const LINES_HEIGHT: u16 = 2;
-pub const SCORES_HEIGHT: u16 = 8;
-pub const NEXT_HEIGHT: u16 = 5;
-pub const BOARD_HEIGHT: u16 = 21;
-pub const LEVEL_HEIGHT: u16 = 2;
-pub const BIG_TEXT_HEIGHT: u16 = 6;
-
-pub const ELEMENTS_XY: (u16, u16) = (2, 2);
 pub const STATS_XY: (u16, u16) = (2, 5);
+
+pub const LINES_WIDTH: u16 = 20;
+pub const LINES_HEIGHT: u16 = 2;
 pub const LINES_XY: (u16, u16) = (22, 0);
+
+pub const SCORES_WIDTH: u16 = 12;
+pub const SCORES_HEIGHT: u16 = 8;
 pub const SCORES_XY: (u16, u16) = (44, 0);
+
+pub const NEXT_WIDTH: u16 = 8;
+pub const NEXT_HEIGHT: u16 = 5;
 pub const NEXT_XY: (u16, u16) = (44, 11);
+
+pub const BOARD_WIDTH: u16 = 20;
+pub const BOARD_HEIGHT: u16 = 21;
 pub const BOARD_XY: (u16, u16) = (22, 3);
+
+pub const LEVEL_WIDTH: u16 = 12;
+pub const LEVEL_HEIGHT: u16 = 2;
 pub const LEVEL_XY: (u16, u16) = (44, 17);
+
+pub const BIG_TEXT_WIDTH: u16 = 50;
+pub const BIG_TEXT_HEIGHT: u16 = 6;
 pub const BIG_TEXT_XY: (u16, u16) = (5, 3);
+
+pub const GAME_OVER_TEXT_WIDTH: u16 = 50;
+pub const GAME_OVER_TEXT_HEIGHT: u16 = 12;
+pub const GAME_OVER_TEXT_XY: (u16, u16) = (5, 3);
+
+pub const RECT_STATS: usize = 0;
+pub const RECT_LINES: usize = 1;
+pub const RECT_BOARD: usize = 4;
+pub const RECT_NEXT: usize = 3;
+pub const RECT_SCORES: usize = 2;
+pub const RECT_LEVEL: usize = 5;
+pub const RECT_BIG_TEXT: usize = 6;
+pub const RECT_SCREEN: usize = 7;
+pub const RECT_GAME_OVER_TEXT: usize = 8;
+pub const RECT_CONTROLS: usize = 9;
+
+pub const ELEMENTS_XY: (u16, u16) = (2, 1);
 
 pub const TEXT_STATS: &str = "    STATISTICS    ";
 pub const TEXT_LINES: &str = "LINES";
@@ -126,11 +174,3 @@ pub const SCREEN_WIDTH: u16 = 32 * 2; // x 2 since each cell is 2 chars per bloc
 pub const SCREEN_HEIGHT: u16 = 28;
 pub const BACKGROUND_COLOR: u8 = 234;
 
-pub const RECT_STATS: usize = 0;
-pub const RECT_LINES: usize = 1;
-pub const RECT_BOARD: usize = 4;
-pub const RECT_NEXT: usize = 3;
-pub const RECT_SCORES: usize = 2;
-pub const RECT_LEVEL: usize = 5;
-pub const RECT_BIG_TEXT: usize = 6;
-pub const RECT_SCREEN: usize = 7;
