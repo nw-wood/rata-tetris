@@ -144,9 +144,31 @@ impl Widget for &Game {
                         let mino = &self.current_mino;
                         let mino_cells = mino.get_rotation();
 
+                        //draw the board cells that have been filled
+                        //this should already be the correct cell position unlike the mino drawing where it needs to be offset by a cell position in mino rot
+                        //don't need to check if within the draw space it always is for the board width
+                        self.board_state.iter().enumerate().for_each(|(cell_y, row)| {
+                            row.iter().enumerate().for_each(|(cell_x, value)| {
+                                //the value will determine the color
+                                let board_rect = &elements[RECT_BOARD];
+                                let cell_screen_position = (board_rect.x + (cell_x as u16 * 2), board_rect.y + cell_y as u16);
+                                let cell_rect = Rect::new(cell_screen_position.0 + 1, cell_screen_position.1 + 1, 2, 1);
+                                //the value will determine the color - cell_style here needs to be changed to use a color index
+                                let cell_empty_style = Style::default().fg(Color::DarkGray);
+                                let cell_full_style = Style::default().fg(Color::Blue);
+                                if *value != 0 {
+                                    Paragraph::new(BLOCK).style(cell_full_style).render(cell_rect, buf);
+                                } else {
+                                    Paragraph::new(format!("{cell_x:02}")).style(cell_empty_style).render(cell_rect, buf);
+                                }
+                            });
+                        });
+
+                        //draw the current falling mino on the board
                         mino_cells.iter().enumerate().for_each(|(y, row)| {
-                            row.iter().enumerate().for_each(|(x, cell_value)| {
-                                if *cell_value != 0 {
+                            row.iter().enumerate().for_each(|(x, value)| {
+                                if *value != 0 {
+                                    //the value will determine the color
                                     let board_rect = &elements[RECT_BOARD];
                                     let cell_screen_position = (board_rect.x as i8 + self.current_mino_position.0, board_rect.y as i8 + self.current_mino_position.1);
                                     let cell_x_pos = (x as i8* 2) + cell_screen_position.0 + 1;
@@ -157,7 +179,6 @@ impl Widget for &Game {
                                 }
                             });
                         });
-
                     }
                     true => {
                         //draw the pause screen
