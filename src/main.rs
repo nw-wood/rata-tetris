@@ -47,8 +47,8 @@ fn run(terminal: DefaultTerminal) -> io::Result<()> {
                     KeyCode::Down =>        game_state.drop_speed_faster(),
                     KeyCode::Left =>        game_state.move_left(),
                     KeyCode::Right =>       game_state.move_right(),
-                    KeyCode::PageUp =>      game_state.rotate_counter_clockwise(),
-                    KeyCode::PageDown =>    game_state.rotate_clockwise(),
+                    KeyCode::PageUp =>      game_state.rotate_left(),
+                    KeyCode::PageDown =>    game_state.rotate_right(),
                     KeyCode::Char(' ') => {
                         //key has multiple uses
                         match game_state.playing {
