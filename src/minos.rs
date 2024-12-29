@@ -98,7 +98,7 @@ impl Mino {
                         vec![0, 1, 0],
                     ],
                 ];
-                start_offset = (10, 0);
+                start_offset = (8, 0);
             },
             J_BLOCK => {
                 rotations = vec![
@@ -123,7 +123,7 @@ impl Mino {
                         vec![0, 1, 0],
                     ],
                 ];
-                start_offset = (10, 0);
+                start_offset = (8, 0);
             },
             Z_BLOCK => {
                 rotations = vec![
@@ -138,7 +138,7 @@ impl Mino {
                         vec![0, 0, 1],
                     ],
                 ];
-                start_offset = (10, 0);
+                start_offset = (8, 0);
             },
             O_BLOCK => {
                 rotations = vec![
@@ -147,7 +147,7 @@ impl Mino {
                         vec![1, 1],
                     ],
                 ];
-                start_offset = (10, 1);
+                start_offset = (8, 1);
             },
             S_BLOCK => {
                 rotations = vec![
@@ -163,7 +163,7 @@ impl Mino {
                     ],
                 ];
                 //was 9
-                start_offset = (10, 0);
+                start_offset = (8, 0);
             },
             L_BLOCK => {
                 rotations = vec![
@@ -188,7 +188,7 @@ impl Mino {
                         vec![0, 1, 1],
                     ],
                 ];
-                start_offset = (10, 0);
+                start_offset = (8, 0);
             },
             I_BLOCK => {
                 rotations = vec![
@@ -205,7 +205,7 @@ impl Mino {
                         vec![0, 0, 1, 0],
                     ],
                 ];
-                start_offset = (8, -1);
+                start_offset = (6, -1);
             },
             _ => {},
         }
