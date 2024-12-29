@@ -4,6 +4,14 @@ pub type Score = u32;
 pub type BoardXY = (i8, i8);
 pub type BlockIndex = usize;
 
+/* Base points (at level 0):
+Single: 40 points
+Double: 100 points
+Triple: 300 points
+Tetris (4 lines): 1200 points */
+
+pub const BASE_SCORES: [u32; 5] = [0, 40, 100, 300, 1200];
+
 pub const J_BLOCK: u8 = 1;
 pub const Z_BLOCK: u8 = 2;
 pub const O_BLOCK: u8 = 3;
@@ -46,9 +54,7 @@ pub const SIGNAL_KILL: u8 = 4;
 pub const SIGNAL_DROP: () = ();
 
 //frame counts for level difficulty
-//48 (level 1 value saved for later... 5 frames is not the level 1 speed)
-pub const GRAVITY_TABLE: [u8; 15] = [1, 43, 38, 33, 28, 23, 18, 13, 8, 6, 5, 4, 3, 2, 1];
-
+pub const GRAVITY_TABLE: [u8; 15] = [48, 43, 38, 33, 28, 23, 18, 13, 8, 6, 5, 4, 3, 2, 1];
 
 //user interface styling, text, borders, and rect identifiers - etc...
 pub const BIG_TEXT_TETRIS: &str = r#"  ██████  ████  ██████  ████    ██    ████    ██  

@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::{self, Read, Write};
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{mpsc, Arc, Mutex};
-use std::thread::{self, current, JoinHandle};
+use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 use dirs::home_dir;
 
@@ -30,7 +30,6 @@ fn get_drop_time_duration(level: u8) -> u128 {
     17 * frames as u128 //off by .33 per millisecond 🤷
 }
 
-//#[derive(Debug, Clone)]
 pub struct Game {
     pub line_count: u16,
     pub statistics: Vec<u16>,
@@ -38,8 +37,6 @@ pub struct Game {
     pub current_score: u32,
     pub current_level: u8,
     pub board_state: Vec<Vec<u8>>,
-   /*  pub playing: bool,
-    pub paused: bool, */
     pub game_state: GameState,
     pub current_mino: Mino,
     pub current_mino_position: BoardXY,
@@ -52,70 +49,36 @@ pub struct Game {
 impl Game {
     pub fn new() -> Arc<Mutex<Self>> {
 
-        //setup senders and receivers
-        let (game_sender, timer_receiver) = mpsc::channel();
-        let (timer_sender, game_receiver) = mpsc::channel();
+        let (timer_tx, timer_receiver) = mpsc::channel();
+        let (timer_sender, timer_rx) = mpsc::channel();
+        let timer_handle = thread::spawn(move || { game_timer(timer_receiver, timer_sender);});
+        timer_tx.send(SIGNAL_PAUSE).unwrap();
 
-        //game timer
-        let handle = thread::spawn(move || {
-            let mut time = Instant::now();
-            let mut current_level = 0;
-            let mut duration = get_drop_time_duration(current_level);
-            'timer: loop {
-                thread::sleep(Duration::from_millis(16));
-                let elapsed = time.elapsed().as_millis();
-                if elapsed >= duration {
-                    if let Ok(signal) =  timer_receiver.try_recv() {
-                        match signal {
-                            SIGNAL_INCREASE => {
-                                current_level += 1;
-                                duration = get_drop_time_duration(current_level);
-                            },
-                            SIGNAL_PAUSE => {
-                                loop {
-                                    thread::sleep(Duration::from_millis(250)); //recheck every quarter second
-                                    if let Ok(signal) = timer_receiver.try_recv() {
-                                        match signal {
-                                            SIGNAL_UNPAUSE => break,
-                                            SIGNAL_KILL => break 'timer,
-                                            _ => {}
-                                        }
-                                    }
-                                }
-                            }
-                            SIGNAL_KILL => break 'timer,
-                            _ => {},
-                        }
-                    }
-                    time = Instant::now();
-                    timer_sender.send(SIGNAL_DROP).unwrap();
-                }
-            }    
-        });
-
-        //pause this timer right away
-        let new_mino = Mino::new(&NO_BLOCK);
-        game_sender.send(SIGNAL_PAUSE).unwrap();
+        let current_mino = Mino::new(&NO_BLOCK);
 
         let game = Self {
             line_count: 0,
-            statistics: vec![0; 7],
+            current_level: 0,
+            current_score: 0,
             top_score: {
                 match load_top_score() {
                     Some(score) => score,
                     None => 0,
                 }
             },
-            current_level: 0,
-            current_score: 0,
+            statistics: {
+                let mut statistics: Vec<u16> = vec![0; MINO_TYPES as usize];
+                statistics[current_mino.selected_mino as usize] += 1;
+                statistics
+            },
             board_state: vec![vec![u8::from(0); GAME_BOARD_WIDTH]; GAME_BOARD_HEIGHT],
             game_state: STATE_START_SCREEN,
-            next_mino: Mino::new(&new_mino.selected_mino),
-            current_mino_position: new_mino.start_offset,
-            current_mino: new_mino,
-            timer_tx: game_sender,
-            timer_rx: game_receiver,
-            timer_handle: handle,    
+            next_mino: Mino::new(&current_mino.selected_mino),
+            current_mino_position: current_mino.start_offset,
+            current_mino,
+            timer_tx,
+            timer_rx,
+            timer_handle,
         };
 
         let game_state = Arc::new(Mutex::new(game));
@@ -151,13 +114,10 @@ impl Game {
             self.current_mino_position.1 + direction.1
         );
 
-        //returns true or false
+        //check against walls, the floor, filled cells in the current board
         rotation.iter().enumerate().any(|(cell_y, row)| {
             row.iter().enumerate().any(|(cell_x, value)| {
-                if *value == 0 {
-                    return false; //empty cell in vector don't care
-                } else {
-
+                if *value != 0 {
                     let board_x_pos = (cell_x as i8 * 2) + new_position.0;
                     let board_y_pos = cell_y as i8 + new_position.1;
 
@@ -171,21 +131,20 @@ impl Game {
                         current_pos.0 += cell_x as i8 * 2;
                         current_pos.1 += cell_y as i8 - 1;
                         current_pos.0 /= 2;
-                        
-                        
+
                         if self.board_state[current_pos.1.max(0) as usize][current_pos.0 as usize] != 0 {
                             return true;    
                         }
                         else {
                             return false;
                         }
-                        //return false;
                     }
-                    //there is still the limit to consider if a cell occupies the same space as a cell in the board
                 }
+                return false;
             })
         })
     }
+
     fn move_mino(&mut self, change_offset: BoardXY) {
         if !self.collision(change_offset, self.current_mino.get_rotation()) {
             //println!("move: {}, {}", change_offset.0, change_offset.1);
@@ -202,18 +161,33 @@ impl Game {
         }
     }
     fn check_rows(&mut self) {
+
         let state = self.board_state.clone();
         let mut count = 0;
         state.iter().enumerate().rev().for_each(|(index, row)| {
             if row.iter().all(|cell| *cell != 0) {
                 self.board_state.remove(index);
                 count += 1;
+                self.increase_lines();
             }
         });
         (0..count).for_each(|_| { self.board_state.insert(0, vec![u8::from(0); GAME_BOARD_WIDTH]);});
+
+        //the base points are multiplied by (level + 1) - if count was 0 no score is added
+        let base_score_earned = BASE_SCORES[count];
+        let score_earned = (self.current_level as u32 + 1) * base_score_earned;
+        self.current_score += score_earned;
+
+        //increase the level
+        if self.line_count / 10 != self.current_level as u16 {
+            self.increase_level();
+            self.timer_tx.send(SIGNAL_INCREASE).unwrap();
+        }
+
     }
 
     fn new_mino(&mut self) {
+        self.increase_stat(self.current_mino.selected_mino as usize);
         self.current_mino = self.next_mino.clone();
         self.next_mino = Mino::new(&self.next_mino.selected_mino);
         self.current_mino_position = self.current_mino.start_offset;
@@ -275,19 +249,11 @@ impl Game {
         self.current_level
     }
 
-    fn set_top_score(&mut self) {
-        if let Some(top_score) = load_top_score() {
-            self.top_score = top_score;
-        } else {
-            self.top_score = 0;
-        }
-    }
-
     fn game_over(&mut self) {
         self.game_state = STATE_GAME_OVER;
         self.timer_tx.send(SIGNAL_PAUSE).unwrap();
         self.board_state = vec![vec![u8::from(0); GAME_BOARD_WIDTH]; GAME_BOARD_HEIGHT];
-        
+
         if self.top_score < self.current_score {
             if let Err(e) = save_top_score(self.current_score) {
                 println!("couldn't save top score file: {e}");
@@ -350,4 +316,44 @@ fn save_top_score(score: Score) -> io::Result<()> {
         file.write(score.to_string().as_bytes())?;
     }
     Ok(())
+}
+
+
+//when a game is created this timer is set to run in it's own thread seperate from the game input and draw calls
+fn game_timer(timer_receiver: Receiver<u8>, timer_sender: Sender<()>) {
+    {
+        let mut time = Instant::now();
+        let mut current_level = 0;
+        let mut duration = get_drop_time_duration(current_level);
+        'timer: loop {
+            thread::sleep(Duration::from_millis(16));
+            let elapsed = time.elapsed().as_millis();
+            if elapsed >= duration {
+                if let Ok(signal) =  timer_receiver.try_recv() {
+                    match signal {
+                        SIGNAL_INCREASE => {
+                            current_level += 1;
+                            duration = get_drop_time_duration(current_level);
+                        },
+                        SIGNAL_PAUSE => {
+                            loop {
+                                thread::sleep(Duration::from_millis(250)); //recheck every quarter second
+                                if let Ok(signal) = timer_receiver.try_recv() {
+                                    match signal {
+                                        SIGNAL_UNPAUSE => break,
+                                        SIGNAL_KILL => break 'timer,
+                                        _ => {}
+                                    }
+                                }
+                            }
+                        }
+                        SIGNAL_KILL => break 'timer,
+                        _ => {},
+                    }
+                }
+                time = Instant::now();
+                timer_sender.send(SIGNAL_DROP).unwrap();
+            }
+        }    
+    }
 }
