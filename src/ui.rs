@@ -1,5 +1,6 @@
 use crate::consts::*;
 
+use crossterm::style::style;
 use once_cell::sync::Lazy;
 
 use crate::game::Game;
@@ -122,6 +123,7 @@ impl Widget for &Game {
 
         let block = Block::bordered();
         let board_block = Block::bordered().style(Style::default().fg(Color::White).bg(bg_color));
+        let block_no_border = Block::new();
 
         let board_style = Style::default().fg(bg_color).bg(bg_color);
         let screen_style = Style::default().fg(bg_color).bg(bg_color);
@@ -129,74 +131,63 @@ impl Widget for &Game {
         let cell_style = Style::default().fg(Color::White);
         
         draw_element(PRECALC_SCREEN, &elements[RECT_SCREEN], &block, &screen_style, buf);
-        
-        match self.playing {
-            true => {
-                match self.paused {
-                    false => {
-                        draw_element("", &elements[RECT_BOARD], &board_block, &board_style, buf);
-                        draw_element(TEXT_STATS, &elements[RECT_STATS], &block, &element_style, buf);
-                        draw_element(TEXT_LINES, &elements[RECT_LINES], &block, &element_style, buf);
-                        draw_element(TEXT_SCORES, &elements[RECT_SCORES], &block, &element_style, buf);
-                        draw_element(TEXT_NEXT, &elements[RECT_NEXT], &block, &element_style, buf);
-                        draw_element(TEXT_LEVEL, &elements[RECT_LEVEL], &block, &element_style, buf);
+        draw_element(CONTROLS_TEXT, &elements[RECT_CONTROLS], &block_no_border, &element_style, buf);
 
-                        let mino = &self.current_mino;
-                        let mino_cells = mino.get_rotation();
+        match self.game_state {
+            STATE_PLAYING => {
+                draw_element("", &elements[RECT_BOARD], &board_block, &board_style, buf);
+                draw_element(TEXT_STATS, &elements[RECT_STATS], &block, &element_style, buf);
+                draw_element(TEXT_LINES, &elements[RECT_LINES], &block, &element_style, buf);
+                draw_element(TEXT_SCORES, &elements[RECT_SCORES], &block, &element_style, buf);
+                draw_element(TEXT_NEXT, &elements[RECT_NEXT], &block, &element_style, buf);
+                draw_element(TEXT_LEVEL, &elements[RECT_LEVEL], &block, &element_style, buf);
 
-                        //draw the board cells that have been filled
-                        //this should already be the correct cell position unlike the mino drawing where it needs to be offset by a cell position in mino rot
-                        //don't need to check if within the draw space it always is for the board width
-                        self.board_state.iter().enumerate().for_each(|(cell_y, row)| {
-                            row.iter().enumerate().for_each(|(cell_x, value)| {
-                                //the value will determine the color
-                                let board_rect = &elements[RECT_BOARD];
-                                let cell_screen_position = (board_rect.x + (cell_x as u16 * 2), board_rect.y + cell_y as u16);
-                                let cell_rect = Rect::new(cell_screen_position.0 + 1, cell_screen_position.1 + 1, 2, 1);
-                                //the value will determine the color - cell_style here needs to be changed to use a color index
-                                let cell_empty_style = Style::default().fg(Color::DarkGray);
-                                let cell_full_style = Style::default().fg(Color::Blue);
-                                if *value != 0 {
-                                    Paragraph::new(BLOCK).style(cell_full_style).render(cell_rect, buf);
-                                } else {
-                                    Paragraph::new(format!("{cell_x:02}")).style(cell_empty_style).render(cell_rect, buf);
-                                }
-                            });
-                        });
+                let mino = &self.current_mino;
+                let mino_cells = mino.get_rotation();
 
-                        //draw the current falling mino on the board
-                        mino_cells.iter().enumerate().for_each(|(y, row)| {
-                            row.iter().enumerate().for_each(|(x, value)| {
-                                if *value != 0 {
-                                    //the value will determine the color
-                                    let board_rect = &elements[RECT_BOARD];
-                                    let cell_screen_position = (board_rect.x as i8 + self.current_mino_position.0, board_rect.y as i8 + self.current_mino_position.1);
-                                    let cell_x_pos = (x as i8* 2) + cell_screen_position.0 + 1;
-                                    let cell_y_pos = y as i8 + cell_screen_position.1;
-                                    if cell_y_pos <= board_rect.y as i8 { return; }
-                                    let cell_rect = Rect::new(cell_x_pos as u16, cell_y_pos as u16, 2, 1);
-                                    Paragraph::new(BLOCK).style(cell_style).render(cell_rect, buf);
-                                }
-                            });
-                        });
-                    }
-                    true => {
-                        //draw the pause screen
-                        draw_element(BIG_TEXT_PAUSED, &elements[RECT_BIG_TEXT], &block, &element_style, buf);
-                    },
-                }
-            },
-            false => {
-                match self.paused {
-                    false => {
-                        //draw the start screen
-                        draw_element(BIG_TEXT_TETRIS, &elements[RECT_BIG_TEXT], &block, &element_style, buf);
-                    },
-                    true => {
-                        //draw the high score screen
-                    },
-                }
+                //draw the board cells that have been filled
+                self.board_state.iter().enumerate().for_each(|(cell_y, row)| {
+                    row.iter().enumerate().for_each(|(cell_x, value)| {
+                        let board_rect = &elements[RECT_BOARD];
+                        let cell_screen_position = (board_rect.x + (cell_x as u16 * 2), board_rect.y + cell_y as u16);
+                        let cell_rect = Rect::new(cell_screen_position.0 + 1, cell_screen_position.1 + 1, 2, 1);
+                        let cell_empty_style = Style::default().fg(Color::DarkGray);
+                        let cell_full_style = Style::default().fg(Color::Blue);
+                        if *value != 0 {
+                            Paragraph::new(BLOCK).style(cell_full_style).render(cell_rect, buf);
+                        } else {
+                            Paragraph::new(EMPTY).style(cell_empty_style).render(cell_rect, buf);
+                        }
+                    });
+                });
+
+                mino_cells.iter().enumerate().for_each(|(y, row)| {
+                    row.iter().enumerate().for_each(|(x, value)| {
+                        if *value != 0 {
+                            let board_rect = &elements[RECT_BOARD];
+                            let cell_screen_position = (board_rect.x as i8 + self.current_mino_position.0, board_rect.y as i8 + self.current_mino_position.1);
+                            let cell_x_pos = (x as i8* 2) + cell_screen_position.0 + 1;
+                            let cell_y_pos = y as i8 + cell_screen_position.1;
+                            if cell_y_pos <= board_rect.y as i8 { return; }
+                            let cell_rect = Rect::new(cell_x_pos as u16, cell_y_pos as u16, 2, 1);
+                            Paragraph::new(BLOCK).style(cell_style).render(cell_rect, buf);
+                        }
+                    });
+                });
             }
+            STATE_PAUSED => {
+                //draw the pause screen
+                draw_element(BIG_TEXT_PAUSED, &elements[RECT_BIG_TEXT], &block, &element_style, buf);
+            },
+            STATE_START_SCREEN => {
+                //draw the TETRIS screen
+                draw_element(BIG_TEXT_TETRIS, &elements[RECT_BIG_TEXT], &block, &element_style, buf);
+            }
+            STATE_GAME_OVER => {
+                //draw the game over screen
+                draw_element(GAME_OVER_TEXT, &elements[RECT_GAME_OVER_TEXT], &block, &element_style, buf);
+            },
+            _ => {}
         }
     }
 }
@@ -254,6 +245,8 @@ fn build_element_rects(area: &Rect) -> Vec<Rect> {
     rects.push(create_rect(LEVEL_XY, LEVEL_WIDTH, LEVEL_HEIGHT));
     rects.push(create_rect(BIG_TEXT_XY, BIG_TEXT_WIDTH, BIG_TEXT_HEIGHT));
     rects.push(screen);
+    rects.push(create_rect(GAME_OVER_TEXT_XY, GAME_OVER_TEXT_WIDTH, GAME_OVER_TEXT_HEIGHT));
+    rects.push(create_rect(CONTROL_XY, CONTROLS_WIDTH, CONTROLS_HEIGHT));
 
     rects
 }
