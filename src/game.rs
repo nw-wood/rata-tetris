@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::{self, Read, Write};
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{mpsc, Arc, Mutex};
-use std::thread::{self, JoinHandle};
+use std::thread::{self, current, JoinHandle};
 use std::time::{Duration, Instant};
 use dirs::home_dir;
 
@@ -93,7 +93,7 @@ impl Game {
         });
 
         //pause this timer right away
-        let start_mino = Mino::new();
+        let start_mino = Mino::new(&NO_BLOCK);
         game_sender.send(SIGNAL_PAUSE).unwrap();
 
         let game = Self {
@@ -110,9 +110,9 @@ impl Game {
             board_state: vec![vec![u8::from(0); GAME_BOARD_WIDTH]; GAME_BOARD_HEIGHT],
             playing: false,
             paused: false,
+            next_mino: Mino::new(&start_mino.selected_mino),
             current_mino_position: start_mino.start_offset,
             current_mino: start_mino,
-            next_mino: Mino::new(),
             timer_tx: game_sender,
             timer_rx: game_receiver,
             timer_handle: handle,    
@@ -124,7 +124,7 @@ impl Game {
 
     pub fn start_game(&mut self) {
         self.playing = true;
-        self.timer_tx.send(SIGNAL_UNPAUSE).unwrap(); //start sending drop events from the timer
+        self.timer_tx.send(SIGNAL_UNPAUSE).unwrap();
     }
 
     pub fn update(&mut self) {
@@ -154,9 +154,9 @@ impl Game {
                     let board_x_pos = (cell_x as i8 * 2) + new_position.0;
                     let board_y_pos = cell_y as i8 + new_position.1;
 
-                    if board_x_pos < 0 || board_x_pos > 22 { //left and right walls limits
+                    if board_x_pos < 0 || board_x_pos >= 20 { //left and right walls limits
                         return true;
-                    } else if board_y_pos >= 20 {//floor limit
+                    } else if board_y_pos > 20 {//floor limit
                         return true;
                     } else {
                         return false;
@@ -170,10 +170,40 @@ impl Game {
         if !self.collision(change_offset, self.current_mino.get_rotation()) {
             self.current_mino_position.0 += change_offset.0;
             self.current_mino_position.1 += change_offset.1;
+        } else if change_offset == DOWN_OFFSET {
+            //now the mino needs placed
+            self.place();
+            //self.check_lines();
+            self.new_mino();
         }
     }
-    fn rotate_mino(&mut self, direction: u8) {
+    fn new_mino(&mut self) {
+        self.current_mino = self.next_mino.clone();
+        self.next_mino = Mino::new(&self.next_mino.selected_mino);
+        self.current_mino_position = self.current_mino.start_offset;
+        //okay! bug testing time
+    }
 
+    fn place(&mut self) {
+        
+        let mino_state = self.current_mino.get_rotation();
+        mino_state.iter().enumerate().for_each(|(cell_y, row)| {
+            row.iter().enumerate().for_each(|(cell_x, val)| {
+                if *val != 0 {
+                    let mut current_pos = self.current_mino_position;
+                    current_pos.0 += cell_x as i8 * 2;
+                    current_pos.1 += cell_y as i8 - 1;
+                    current_pos.0 /= 2;
+                    self.board_state[current_pos.1 as usize][current_pos.0 as usize] = self.current_mino.selected_mino;
+                }
+            });
+        });
+    }
+    fn rotate_mino(&mut self, direction: u8) {
+        let next_rotation = self.current_mino.next_rotation(direction).clone();
+        if !self.collision(NO_OFFSET, &next_rotation) {
+            self.current_mino.rotate(direction);
+        }
     }
     pub fn move_down(&mut self) {
         if !self.playing || self.paused { return; }
@@ -189,17 +219,11 @@ impl Game {
     }
     pub fn rotate_right(&mut self) {
         if !self.playing || self.paused { return; }
-        let next_rotation = self.current_mino.next_rotation(ROT_RIGHT).clone();
-        if !self.collision(NO_OFFSET, &next_rotation) {
-            self.current_mino.rotate(ROT_RIGHT);
-        }
+        self.rotate_mino(ROT_RIGHT);
     }
     pub fn rotate_left(&mut self) {
         if !self.playing || self.paused { return; }
-        let next_rotation = self.current_mino.next_rotation(ROT_LEFT).clone();
-        if !self.collision(NO_OFFSET, &next_rotation) {
-            self.current_mino.rotate(ROT_LEFT);
-        }
+        self.rotate_mino(ROT_LEFT);
     }
 
     fn increase_lines(&mut self) {
