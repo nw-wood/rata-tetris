@@ -1,18 +1,5 @@
 use rand::Rng;
-
-pub const T_BLOCK: u8 = 0;
-pub const J_BLOCK: u8 = 1;
-pub const Z_BLOCK: u8 = 2;
-pub const O_BLOCK: u8 = 3;
-pub const S_BLOCK: u8 = 4;
-pub const L_BLOCK: u8 = 5;
-pub const I_BLOCK: u8 = 6;
-pub const MINO_TYPES: u8 = 7;
-
-type Rotation = Vec<Vec<u8>>;
-
-const ROT_LEFT: u8 = 0;
-const ROT_RIGHT: u8 = 1;
+use crate::consts::*;
 
 #[derive(Clone)]
 pub struct Mino {
@@ -68,13 +55,25 @@ impl Mino {
         }
     }
 
-    pub fn new() -> Self {
+    pub fn new(current_next: &u8) -> Self {
 
         let mut rng = rand::thread_rng();
-        let selected_mino = rng.gen_range(0..MINO_TYPES);
+        //pick a mino
+        let mut selected_mino = rng.gen_range(0..MINO_TYPES);
+        //if it's the same as mino that's next then reroll it, or if a reroll is specified
+        if selected_mino == *current_next || selected_mino == REROLL {
+            loop {
+                //roll for a new block and take the first one that isn't a reroll result
+                selected_mino = rng.gen_range(0..MINO_TYPES);
+                if selected_mino != REROLL {
+                    break;
+                }
+            }
+        }
         let mut rotations: Vec<Rotation> = vec![];
         let mut start_offset: (i8, i8) = (0, 0);
-
+        //wish I had access to some of the game state here... pass in reference to current mino then
+        //FIX: this should use constant arrays instead of vectors built like this
         match selected_mino {
             T_BLOCK => {
                 rotations = vec![
