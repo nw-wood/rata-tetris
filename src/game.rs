@@ -5,16 +5,20 @@ use std::sync::{mpsc, Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 use dirs::home_dir;
-
+type Rotation = Vec<Vec<u8>>;
 use crate::minos::Mino;
 
 const TOP_SCORE_FILENAME: &str = "top_score";
 const BOARD_WIDTH: usize = 10;
 const BOARD_HEIGHT: usize = 20;
 
-const LEFT_OFFSET: (i8, i8) = (-1, 0);
-const RIGHT_OFFSET: (i8, i8) = (1, 0);
+const LEFT_OFFSET: (i8, i8) = (-2, 0);
+const RIGHT_OFFSET: (i8, i8) = (2, 0);
 const DOWN_OFFSET: (i8, i8) = (0, 1); //higher = further down the board
+const NO_OFFSET: (i8, i8) = (0, 0);
+
+const ROT_LEFT: u8 = 0;
+const ROT_RIGHT: u8 = 1;
 
 const SIGNAL_INCREASE: u8 = 1;
 const SIGNAL_PAUSE: u8 = 2;
@@ -47,7 +51,7 @@ fn get_drop_time_duration(level: u8) -> u128 {
 
 type BlockIndex = usize;
 type Score = u32;
-//considering making this it's own type.. signed i8's also makes the logic a bit more simple
+
 type BoardXY = (i8, i8);
 
 //#[derive(Debug, Clone)]
@@ -113,6 +117,7 @@ impl Game {
         });
 
         //pause this timer right away
+        let start_mino = Mino::new();
         game_sender.send(SIGNAL_PAUSE).unwrap();
 
         let game = Self {
@@ -129,58 +134,95 @@ impl Game {
             board_state: vec![vec![u8::from(0); BOARD_WIDTH]; BOARD_HEIGHT],
             playing: false,
             paused: false,
-            current_mino: Mino::new(),
+            current_mino_position: start_mino.start_offset,
+            current_mino: start_mino,
             next_mino: Mino::new(),
-            current_mino_position: (0, 0),
             timer_tx: game_sender,
             timer_rx: game_receiver,
             timer_handle: handle,    
         };
 
         let game_state = Arc::new(Mutex::new(game));
-        //println!("before game state returned...");
         game_state
     }
 
     pub fn start_game(&mut self) {
-        //triggered when the user pressed space at the main screen
         self.playing = true;
-        self.timer_tx.send(SIGNAL_UNPAUSE).unwrap();
+        self.timer_tx.send(SIGNAL_UNPAUSE).unwrap(); //start sending drop events from the timer
     }
 
     pub fn update(&mut self) {
         let mut drop_count = 0;
-        /* for _ in &self.timer_rx {
-            drop_count += 1;
-            println!("drop count incremented: {drop_count}");
-        } */
+
         while !&self.timer_rx.try_recv().is_err() {
             drop_count += 1;
         }
-        for _ in 0..drop_count {
-            //println!("drop");
-            self.try_drop();
+
+        (0..drop_count).for_each(|_| self.move_down());
+    }
+
+    pub fn collision(&self, direction: (i8, i8), rotation: &Rotation) -> bool {
+
+        let new_position: (i8, i8) = (
+            self.current_mino_position.0 + direction.0,
+            self.current_mino_position.1 + direction.1
+        );
+
+        //returns true or false
+        rotation.iter().enumerate().any(|(cell_y, row)| {
+            row.iter().enumerate().any(|(cell_x, value)| {
+                if *value == 0 {
+                    return false; //empty cell in vector don't care
+                } else {
+
+                    let board_x_pos = (cell_x as i8 * 2) + new_position.0;
+                    let board_y_pos = cell_y as i8 + new_position.1;
+
+                    if board_x_pos < 0 || board_x_pos > 22 { //left and right walls limits
+                        return true;
+                    } else if board_y_pos >= 20 {//floor limit
+                        return true;
+                    } else {
+                        return false;
+                    }
+                    //there is still the limit to consider if a cell occupies the same space as a cell in the board
+                }
+            })
+        })
+    }
+    fn move_mino(&mut self, change_offset: BoardXY) {
+        if !self.collision(change_offset, self.current_mino.get_rotation()) {
+            self.current_mino_position.0 += change_offset.0;
+            self.current_mino_position.1 += change_offset.1;
         }
     }
+    fn rotate_mino(&mut self, direction: u8) {
 
-    fn move_mino(&mut self, change_offset: BoardXY) {
-        self.current_mino_position.0 += change_offset.0;
-        self.current_mino_position.1 += change_offset.1;
     }
-
-    fn place_mino(&mut self) {
-        let type_fill = self.current_mino.selected_mino;
-        self.current_mino = self.next_mino.clone();
-        self.next_mino = Mino::new();
+    pub fn move_down(&mut self) {
+        if !self.playing || self.paused { return; }
+        self.move_mino(DOWN_OFFSET);
     }
-
-    fn try_drop(& mut self) {
-        let rotation = self.current_mino.get_rotation();
-        /*working out collision handling and game time passing logic still*/
-        if false == true {
-            self.place_mino();
-        } else {
-            //self.move_down();
+    pub fn move_left(&mut self) {
+        if !self.playing || self.paused { return; }
+        self.move_mino(LEFT_OFFSET);
+    }
+    pub fn move_right(&mut self) {
+        if !self.playing || self.paused { return; }
+        self.move_mino(RIGHT_OFFSET);
+    }
+    pub fn rotate_right(&mut self) {
+        if !self.playing || self.paused { return; }
+        let next_rotation = self.current_mino.next_rotation(ROT_RIGHT).clone();
+        if !self.collision(NO_OFFSET, &next_rotation) {
+            self.current_mino.rotate(ROT_RIGHT);
+        }
+    }
+    pub fn rotate_left(&mut self) {
+        if !self.playing || self.paused { return; }
+        let next_rotation = self.current_mino.next_rotation(ROT_LEFT).clone();
+        if !self.collision(NO_OFFSET, &next_rotation) {
+            self.current_mino.rotate(ROT_LEFT);
         }
     }
 
@@ -220,11 +262,6 @@ impl Game {
         self.current_score = 0;
         //doesn't change self.top_score = 0; 
     }
-
-    pub fn move_down(&mut self) {
-        self.move_mino(DOWN_OFFSET);
-    }
-
     //input functions
     pub fn slam(&mut self) {
         if !self.playing || self.paused { return; }
@@ -233,20 +270,6 @@ impl Game {
         if !self.playing || self.paused { return; }
     }
     pub fn drop_speed_normal(&mut self) {
-        if !self.playing || self.paused { return; }
-    }
-    pub fn move_left(&mut self) {
-        if !self.playing || self.paused { return; }
-        self.move_mino(LEFT_OFFSET);
-    }
-    pub fn move_right(&mut self) {
-        if !self.playing || self.paused { return; }
-        self.move_mino(RIGHT_OFFSET);
-    }
-    pub fn rotate_clockwise(&mut self) {
-        if !self.playing || self.paused { return; }
-    }
-    pub fn rotate_counter_clockwise(&mut self) {
         if !self.playing || self.paused { return; }
     }
     pub fn toggle_paused(&mut self) {
