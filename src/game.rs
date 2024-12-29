@@ -5,29 +5,10 @@ use std::sync::{mpsc, Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 use dirs::home_dir;
-type Rotation = Vec<Vec<u8>>;
+
 use crate::minos::Mino;
+use crate::consts::*;
 
-const TOP_SCORE_FILENAME: &str = "top_score";
-const BOARD_WIDTH: usize = 10;
-const BOARD_HEIGHT: usize = 20;
-
-const LEFT_OFFSET: (i8, i8) = (-2, 0);
-const RIGHT_OFFSET: (i8, i8) = (2, 0);
-const DOWN_OFFSET: (i8, i8) = (0, 1); //higher = further down the board
-const NO_OFFSET: (i8, i8) = (0, 0);
-
-const ROT_LEFT: u8 = 0;
-const ROT_RIGHT: u8 = 1;
-
-const SIGNAL_INCREASE: u8 = 1;
-const SIGNAL_PAUSE: u8 = 2;
-const SIGNAL_UNPAUSE: u8 = 3;
-const SIGNAL_KILL: u8 = 4;
-const SIGNAL_DROP: () = ();
-
-//'frame counts' for the level difficulties
-const GRAVITY_TABLE: [u8; 15] = [48, 43, 38, 33, 28, 23, 18, 13, 8, 6, 5, 4, 3, 2, 1];
 fn get_drop_time_duration(level: u8) -> u128 {
     let frames = match level {
         0 => GRAVITY_TABLE[0],
@@ -48,11 +29,6 @@ fn get_drop_time_duration(level: u8) -> u128 {
     };
     17 * frames as u128 //off by .33 per millisecond 🤷
 }
-
-type BlockIndex = usize;
-type Score = u32;
-
-type BoardXY = (i8, i8);
 
 //#[derive(Debug, Clone)]
 pub struct Game {
@@ -131,7 +107,7 @@ impl Game {
             },
             current_level: 0,
             current_score: 0,
-            board_state: vec![vec![u8::from(0); BOARD_WIDTH]; BOARD_HEIGHT],
+            board_state: vec![vec![u8::from(0); GAME_BOARD_WIDTH]; GAME_BOARD_HEIGHT],
             playing: false,
             paused: false,
             current_mino_position: start_mino.start_offset,

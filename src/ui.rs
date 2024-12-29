@@ -1,4 +1,4 @@
-use crate::ui_consts::*;
+use crate::consts::*;
 
 use once_cell::sync::Lazy;
 
@@ -12,7 +12,12 @@ use std::{
 };
 
 use ratatui::{
-    buffer::Buffer, layout::Rect, style::{Color, Style}, symbols::line, text::{Line, Span}, widgets::{Block, Paragraph, Widget}, DefaultTerminal
+    buffer::Buffer,
+    layout::Rect,
+    style::{Color, Style},
+    text::{Line, Span},
+    widgets::{Block, Paragraph, Widget},
+    DefaultTerminal
 };
 
 pub static BACKGROUND: Lazy<CachedBackground> = Lazy::new(|| CachedBackground::new());

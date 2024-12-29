@@ -1,7 +1,7 @@
 mod ui;
 mod game;
 mod minos;
-mod ui_consts;
+mod consts;
 
 use std::{
     io, 
