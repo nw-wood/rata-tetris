@@ -16,9 +16,9 @@ pub const J_BLOCK: u8 = 1;
 pub const Z_BLOCK: u8 = 2;
 pub const O_BLOCK: u8 = 3;
 pub const S_BLOCK: u8 = 4;
-pub const L_BLOCK: u8 = 5;
-pub const I_BLOCK: u8 = 6;
-pub const T_BLOCK: u8 = 7;
+pub const T_BLOCK: u8 = 5;
+pub const L_BLOCK: u8 = 6;
+pub const I_BLOCK: u8 = 7;
 
 pub const STATE_PLAYING: u8 = 0;
 pub const STATE_PAUSED: u8 = 1;
@@ -51,6 +51,7 @@ pub const SIGNAL_INCREASE: u8 = 1;
 pub const SIGNAL_PAUSE: u8 = 2;
 pub const SIGNAL_UNPAUSE: u8 = 3;
 pub const SIGNAL_KILL: u8 = 4;
+pub const SIGNAL_RESET: u8 = 5;
 pub const SIGNAL_DROP: () = ();
 
 //frame counts for level difficulty
@@ -124,8 +125,8 @@ pub const CONTROLS_HEIGHT: u16 = 0;
 pub const CONTROL_XY: (u16, u16) = (0, SCREEN_HEIGHT - 2);
 
 pub const STATS_WIDTH: u16 = 18;
-pub const STATS_HEIGHT: u16 = 18;
-pub const STATS_XY: (u16, u16) = (2, 5);
+pub const STATS_HEIGHT: u16 = 23;
+pub const STATS_XY: (u16, u16) = (2, 0);
 
 pub const LINES_WIDTH: u16 = 20;
 pub const LINES_HEIGHT: u16 = 2;
@@ -168,11 +169,13 @@ pub const RECT_CONTROLS: usize = 9;
 
 pub const ELEMENTS_XY: (u16, u16) = (2, 1);
 
-pub const TEXT_STATS: &str = "    STATISTICS    ";
-pub const TEXT_LINES: &str = "LINES";
-pub const TEXT_SCORES: &str = "\nTOP\n 0 0 0 0 0 0\n\nSCORE\n 0 0 0 0 0 0";
-pub const TEXT_NEXT: &str = "  NEXT  ";
-pub const TEXT_LEVEL: &str = "  LEVEL ??";
+pub const TEXT_STATS: &str = "    STATISTICS    \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n "; //doing this causes draw_render paragraphs to fill with empty space properly
+pub const TEXT_LINES: &str = "     LINES - ";
+pub const TEXT_NEXT: &str = r#"  NEXT  
+        
+        
+        "#;
+pub const TEXT_LEVEL: &str = "  LEVEL ";
 
 pub const BLOCK: &str = "██";
 pub const EMPTY: &str = "  ";
@@ -180,3 +183,51 @@ pub const SCREEN_WIDTH: u16 = 32 * 2; // x 2 since each cell is 2 chars per bloc
 pub const SCREEN_HEIGHT: u16 = 28;
 pub const BACKGROUND_COLOR: u8 = 234;
 
+pub const PALETTE_BLURPLE: [u8; 7] =[069, 063, 057, 069, 075, 033, 039];
+pub const PALETTE_LIME: [u8; 7] =   [040, 046, 047, 034, 028, 022, 082];
+pub const PALETTE_PINK: [u8; 7] =   [219, 213, 207, 201, 200, 199, 206];
+pub const PALETTE_SWAMP: [u8; 7] =  [033, 063, 027, 039, 041, 047, 046];
+pub const PALETTE_MELON: [u8; 7] =  [085, 120, 048, 199, 200, 201, 207];
+pub const PALETTE_LAKE: [u8; 7] =   [069, 063, 057, 085, 079, 120, 115];
+pub const PALETTE_FACTORY: [u8; 7] =[242, 244, 249, 196, 160, 124, 202];
+pub const PALETTE_MUAVE: [u8; 7] =  [052, 088, 089, 091, 093, 141, 129];
+pub const PALETTE_NARU: [u8; 7] =   [196, 160, 124, 020, 027, 111, 075];
+pub const PALETTE_CREAM: [u8; 7] =  [222, 216, 221, 202, 196, 160, 228];
+
+
+/* pub const J_BLOCK: u8 = 1;
+pub const Z_BLOCK: u8 = 2;
+pub const O_BLOCK: u8 = 3;
+pub const S_BLOCK: u8 = 4;
+pub const L_BLOCK: u8 = 5;
+pub const I_BLOCK: u8 = 6;
+pub const T_BLOCK: u8 = 7; */
+
+pub const TEXT_MINO_O: &str = r#"████
+████"#;
+
+pub const TEXT_MINO_L: &str = r#"██████
+██
+
+
+"#;
+
+pub const TEXT_MINO_J: &str = r#"██
+██████"#;
+
+pub const TEXT_MINO_T: &str = r#"  ██      
+██████
+
+"#;
+
+pub const TEXT_MINO_Z: &str = r#"████  
+  ████"#;
+
+pub const TEXT_MINO_S: &str = r#"  ████
+████"#;
+
+pub const TEXT_MINO_I: &str = r#"████████         
+
+
+
+"#;
