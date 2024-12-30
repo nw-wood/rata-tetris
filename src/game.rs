@@ -9,27 +9,6 @@ use dirs::home_dir;
 use crate::minos::Mino;
 use crate::consts::*;
 
-fn get_drop_time_duration(level: u8) -> u128 {
-    let frames = match level {
-        0 => GRAVITY_TABLE[0],
-        1 => GRAVITY_TABLE[1],
-        2 => GRAVITY_TABLE[2],
-        3 => GRAVITY_TABLE[3],
-        4 => GRAVITY_TABLE[4],
-        5 => GRAVITY_TABLE[5],
-        6 => GRAVITY_TABLE[6],
-        7 => GRAVITY_TABLE[7],
-        8 => GRAVITY_TABLE[8],
-        9 => GRAVITY_TABLE[9],
-        10..=12 => GRAVITY_TABLE[10],
-        13..=15 => GRAVITY_TABLE[11],
-        16..=18 => GRAVITY_TABLE[12],
-        19..=28 => GRAVITY_TABLE[13],
-        _ => GRAVITY_TABLE[14],
-    };
-    17 * frames as u128 //off by .33 per millisecond 🤷
-}
-
 pub struct Game {
     pub line_count: u16,
     pub statistics: Vec<u16>,
@@ -67,8 +46,8 @@ impl Game {
                 }
             },
             statistics: {
-                let mut statistics: Vec<u16> = vec![0; MINO_TYPES as usize];
-                statistics[current_mino.selected_mino as usize] += 1;
+                let mut statistics: Vec<u16> = vec![0; MINO_TYPES as usize - 1];
+                statistics[current_mino.selected_mino as usize - 1] += 1;
                 statistics
             },
             board_state: vec![vec![u8::from(0); GAME_BOARD_WIDTH]; GAME_BOARD_HEIGHT],
@@ -187,7 +166,7 @@ impl Game {
     }
 
     fn new_mino(&mut self) {
-        self.increase_stat(self.current_mino.selected_mino as usize);
+        self.increase_stat(self.next_mino.selected_mino as usize);
         self.current_mino = self.next_mino.clone();
         self.next_mino = Mino::new(&self.next_mino.selected_mino);
         self.current_mino_position = self.current_mino.start_offset;
@@ -314,42 +293,79 @@ fn save_top_score(score: Score) -> io::Result<()> {
     Ok(())
 }
 
+fn get_drop_time_duration(level: u8) -> u128 {
+    let frames = match level {
+        0 => GRAVITY_TABLE[0],
+        1 => GRAVITY_TABLE[1],
+        2 => GRAVITY_TABLE[2],
+        3 => GRAVITY_TABLE[3],
+        4 => GRAVITY_TABLE[4],
+        5 => GRAVITY_TABLE[5],
+        6 => GRAVITY_TABLE[6],
+        7 => GRAVITY_TABLE[7],
+        8 => GRAVITY_TABLE[8],
+        9 => GRAVITY_TABLE[9],
+        10..=12 => GRAVITY_TABLE[10],
+        13..=15 => GRAVITY_TABLE[11],
+        16..=18 => GRAVITY_TABLE[12],
+        19..=28 => GRAVITY_TABLE[13],
+        _ => GRAVITY_TABLE[14],
+    };
+    17 * frames as u128 //off by .33 per millisecond 🤷
+}
+
+struct Timer {
+    level: u8,
+    duration: u128,
+}
+
+impl Timer {
+    fn new(start: u8) -> Self {
+        Self {
+            level: start,
+            duration: get_drop_time_duration(start),
+        }
+    }
+
+    fn increase(&mut self) {
+        self.level += 1;
+        self.duration = get_drop_time_duration(self.level);
+    }
+}
 
 //when a game is created this timer is set to run in it's own thread seperate from the game input and draw calls
 fn game_timer(timer_receiver: Receiver<u8>, timer_sender: Sender<()>) {
-    {
-        let mut time = Instant::now();
-        let mut current_level = 0;
-        let mut duration = get_drop_time_duration(current_level);
-        'timer: loop {
-            thread::sleep(Duration::from_millis(16));
-            let elapsed = time.elapsed().as_millis();
-            if elapsed >= duration {
-                if let Ok(signal) =  timer_receiver.try_recv() {
-                    match signal {
-                        SIGNAL_INCREASE => {
-                            current_level += 1;
-                            duration = get_drop_time_duration(current_level);
-                        },
-                        SIGNAL_PAUSE => {
-                            loop {
-                                thread::sleep(Duration::from_millis(250)); //recheck every quarter second
-                                if let Ok(signal) = timer_receiver.try_recv() {
-                                    match signal {
-                                        SIGNAL_UNPAUSE => break,
-                                        SIGNAL_KILL => break 'timer,
-                                        _ => {}
-                                    }
+
+    let mut time = Instant::now();
+    let mut timer = Timer::new(0);
+
+    'timer: loop {
+        thread::sleep(Duration::from_millis(16));
+        let elapsed = time.elapsed().as_millis();
+        if elapsed >= timer.duration {
+            if let Ok(signal) =  timer_receiver.try_recv() {
+                match signal {
+                    SIGNAL_INCREASE => timer.increase(),
+                    SIGNAL_PAUSE => {
+                        loop {
+                            thread::sleep(Duration::from_millis(250)); //recheck every quarter second
+                            if let Ok(signal) = timer_receiver.try_recv() {
+                                match signal {
+                                    SIGNAL_UNPAUSE => break,
+                                    SIGNAL_KILL => break 'timer,
+                                    SIGNAL_RESET => {timer = Timer::new(0)},
+                                    _ => {}
                                 }
                             }
                         }
-                        SIGNAL_KILL => break 'timer,
-                        _ => {},
                     }
+                    SIGNAL_KILL => break 'timer,
+                    SIGNAL_RESET => {timer = Timer::new(0)},
+                    _ => {},
                 }
-                time = Instant::now();
-                timer_sender.send(SIGNAL_DROP).unwrap();
             }
-        }    
-    }
+            time = Instant::now();
+            timer_sender.send(SIGNAL_DROP).unwrap();
+        }
+    }    
 }
