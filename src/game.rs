@@ -241,7 +241,8 @@ impl Game {
     }
 
     fn increase_stat(&mut self, index: BlockIndex) {
-        self.statistics[index] += 1;
+        //this produced a crash, subtracting one since valid block indexes are 1..=7, and statistics is 0..=6; 0 represents empty cells and rerolls in the mino generator
+        self.statistics[index - 1] += 1;
     }
 
     fn increase_level(&mut self) -> u8 {
@@ -251,6 +252,7 @@ impl Game {
 
     fn game_over(&mut self) {
         self.game_state = STATE_GAME_OVER;
+        self.timer_tx.send(SIGNAL_RESET).unwrap();
         self.timer_tx.send(SIGNAL_PAUSE).unwrap();
         self.board_state = vec![vec![u8::from(0); GAME_BOARD_WIDTH]; GAME_BOARD_HEIGHT];
 
@@ -263,12 +265,6 @@ impl Game {
     }
     //input functions
     pub fn slam(&mut self) {
-        if self.game_state != STATE_PLAYING { return; }
-    }
-    pub fn drop_speed_faster(&mut self) {
-        if self.game_state != STATE_PLAYING { return; }
-    }
-    pub fn drop_speed_normal(&mut self) {
         if self.game_state != STATE_PLAYING { return; }
     }
     pub fn toggle_paused(&mut self) {
