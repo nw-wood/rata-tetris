@@ -124,6 +124,10 @@ pub const CONTROLS_WIDTH: u16 = SCREEN_WIDTH - 7;
 pub const CONTROLS_HEIGHT: u16 = 0;
 pub const CONTROL_XY: (u16, u16) = (0, SCREEN_HEIGHT - 2);
 
+pub const STATS_INSET_WIDTH: u16 = 14;
+pub const STATS_INSET_HEIGHT: u16 = 22;
+pub const STATS_INSET_XY: (u16, u16) = (5, 3); 
+
 pub const STATS_WIDTH: u16 = 18;
 pub const STATS_HEIGHT: u16 = 23;
 pub const STATS_XY: (u16, u16) = (2, 0);
@@ -136,9 +140,13 @@ pub const SCORES_WIDTH: u16 = 12;
 pub const SCORES_HEIGHT: u16 = 8;
 pub const SCORES_XY: (u16, u16) = (44, 0);
 
-pub const NEXT_WIDTH: u16 = 8;
-pub const NEXT_HEIGHT: u16 = 5;
+pub const NEXT_WIDTH: u16 = 10;
+pub const NEXT_HEIGHT: u16 = 6;
 pub const NEXT_XY: (u16, u16) = (44, 11);
+
+pub const NEXT_INSET_WIDTH: u16 = 6;
+pub const NEXT_INSET_HEIGHT: u16 = 2;
+pub const NEXT_INSET_XY: (u16, u16) = (46, 14);
 
 pub const BOARD_WIDTH: u16 = 20;
 pub const BOARD_HEIGHT: u16 = 21;
@@ -146,7 +154,7 @@ pub const BOARD_XY: (u16, u16) = (22, 3);
 
 pub const LEVEL_WIDTH: u16 = 12;
 pub const LEVEL_HEIGHT: u16 = 2;
-pub const LEVEL_XY: (u16, u16) = (44, 17);
+pub const LEVEL_XY: (u16, u16) = (44, 18);
 
 pub const BIG_TEXT_WIDTH: u16 = 50;
 pub const BIG_TEXT_HEIGHT: u16 = 6;
@@ -166,15 +174,14 @@ pub const RECT_BIG_TEXT: usize = 6;
 pub const RECT_SCREEN: usize = 7;
 pub const RECT_GAME_OVER_TEXT: usize = 8;
 pub const RECT_CONTROLS: usize = 9;
+pub const RECT_STATS_INSET: usize = 10;
+pub const RECT_NEXT_INSET: usize = 11;
 
 pub const ELEMENTS_XY: (u16, u16) = (2, 1);
 
 pub const TEXT_STATS: &str = "    STATISTICS    \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n \n "; //doing this causes draw_render paragraphs to fill with empty space properly
 pub const TEXT_LINES: &str = "     LINES - ";
-pub const TEXT_NEXT: &str = r#"  NEXT  
-        
-        
-        "#;
+pub const TEXT_NEXT: &str = "   NEXT\n \n \n \n ";
 pub const TEXT_LEVEL: &str = "  LEVEL ";
 
 pub const BLOCK: &str = "██";
