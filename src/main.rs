@@ -4,7 +4,7 @@ mod minos;
 mod consts;
 
 use std::{
-    io, 
+    io::{self}, 
     thread
 };
 
@@ -41,36 +41,33 @@ fn run(terminal: DefaultTerminal) -> io::Result<()> {
 
     loop {
         if let Event::Key(key) = event::read()? {
-            if key.kind == KeyEventKind::Press {
-                let mut game = game.lock().unwrap();
-                match key.code {
-                    KeyCode::Up =>          game.slam(),
-                    KeyCode::Down =>        game.drop_speed_faster(),
-                    KeyCode::Left =>        game.move_left(),
-                    KeyCode::Right =>       game.move_right(),
-                    KeyCode::PageUp =>      game.rotate_left(),
-                    KeyCode::PageDown =>    game.rotate_right(),
-                    KeyCode::Char(' ') => {
-                        //key has multiple uses
-                        match game.game_state {
-                            STATE_START_SCREEN => game.start_game(),
-                            STATE_PAUSED => game.toggle_paused(),
-                            STATE_PLAYING => game.toggle_paused(),
-                            STATE_GAME_OVER => game.new_game(),
-                            _ => {}
+            match key.kind {
+                KeyEventKind::Press => {
+                    let mut game = game.lock().unwrap();
+                    match key.code {
+                        KeyCode::Up =>          game.slam(),
+                        KeyCode::Down =>        game.move_down(),
+                        KeyCode::Left =>        game.move_left(),
+                        KeyCode::Right =>       game.move_right(),
+                        KeyCode::PageUp =>      game.rotate_left(),
+                        KeyCode::PageDown =>    game.rotate_right(),
+                        KeyCode::Char(' ') => {
+                            //key has multiple uses
+                            match game.game_state {
+                                STATE_START_SCREEN => game.start_game(),
+                                STATE_PAUSED => game.toggle_paused(),
+                                STATE_PLAYING => game.toggle_paused(),
+                                STATE_GAME_OVER => game.new_game(),
+                                _ => {}
+                            }
                         }
+                        KeyCode::Char('q') => {
+                            break;
+                        },
+                        _ => {}
                     }
-                    KeyCode::Char('q') => {
-                        break;
-                    },
-                    _ => {}
                 }
-            }
-            else if key.kind == KeyEventKind::Release {
-                match key.code {
-                    KeyCode::Down => game.lock().unwrap().drop_speed_normal(),
-                    _ => {}
-                }
+                _ => {},
             }
         }
     }
