@@ -23,6 +23,8 @@ pub struct Game {
     timer_tx: Sender<u8>,
     pub timer_rx: Receiver<()>,
     pub timer_handle: JoinHandle<()>,
+    pub slam_offset: BoardXY,
+    pub cleared: bool,
 }
 
 impl Game {
@@ -58,6 +60,8 @@ impl Game {
             timer_tx,
             timer_rx,
             timer_handle,
+            slam_offset: NO_OFFSET,
+            cleared: false,
         };
 
         let game_state = Arc::new(Mutex::new(game));
@@ -72,11 +76,18 @@ impl Game {
         self.current_level = 0;
         self.line_count = 0;
         self.statistics = vec![0; 7];
+        if self.current_score > self.top_score {
+            self.top_score = self.current_score;
+        }
         self.current_score = 0;
+        
         self.start_game();
     }
 
     pub fn update(&mut self) {
+
+        self.check_rows();
+
         let mut drop_count = 0;
 
         while !&self.timer_rx.try_recv().is_err() {
@@ -84,11 +95,20 @@ impl Game {
         }
 
         (0..drop_count).for_each(|_| self.move_down());
+
+        //find the next collision to render ghost pieces and enable piece slamming - if needed this can use an optimized collision function
+        let mut has_collided = false;
+        let mut collision_offset = NO_OFFSET;
+        while !has_collided {
+            collision_offset.1 += 1;
+            has_collided = self.collision(collision_offset, self.current_mino.get_rotation());
+        }
+        self.slam_offset = (0, collision_offset.1 - 1);
     }
 
-    pub fn collision(&self, direction: (i8, i8), rotation: &Rotation) -> bool {
+    pub fn collision(&self, direction: BoardXY, rotation: &Rotation) -> bool {
 
-        let new_position: (i8, i8) = (
+        let new_position: BoardXY = (
             self.current_mino_position.0 + direction.0,
             self.current_mino_position.1 + direction.1
         );
@@ -97,8 +117,7 @@ impl Game {
         rotation.iter().enumerate().any(|(cell_y, row)| {
             row.iter().enumerate().any(|(cell_x, value)| {
                 if *value != 0 {
-                    let board_x_pos = (cell_x as i8 * 2) + new_position.0;
-                    let board_y_pos = cell_y as i8 + new_position.1;
+                    let (board_x_pos, board_y_pos): BoardXY = ((cell_x as i16 * 2) + new_position.0, cell_y as i16 + new_position.1);
 
                     if board_x_pos < 0 || board_x_pos >= 20 { //left and right walls limits
                         return true;
@@ -107,8 +126,8 @@ impl Game {
                     } else {
                         
                         let mut current_pos = new_position.clone();
-                        current_pos.0 += cell_x as i8 * 2;
-                        current_pos.1 += cell_y as i8 - 1;
+                        current_pos.0 += cell_x as i16 * 2;
+                        current_pos.1 += cell_y as i16 - 1;
                         current_pos.0 /= 2;
 
                         if self.board_state[current_pos.1.max(0) as usize][current_pos.0 as usize] != 0 {
@@ -132,13 +151,14 @@ impl Game {
         } else if change_offset == DOWN_OFFSET {
             //now the mino needs placed
             self.place();
-            self.check_rows();
+            //self.check_rows(); can this be moved???
             self.new_mino();
             if self.collision(DOWN_OFFSET, self.current_mino.get_rotation()) {
                 self.game_over();
             }
         }
     }
+
     fn check_rows(&mut self) {
 
         let state = self.board_state.clone();
@@ -150,8 +170,11 @@ impl Game {
                 self.increase_lines();
             }
         });
-        (0..count).for_each(|_| { self.board_state.insert(0, vec![u8::from(0); GAME_BOARD_WIDTH]);});
 
+        if count > 0 { self.cleared = true };
+        (0..count).for_each(|_| { 
+            self.board_state.insert(0, vec![u8::from(0); GAME_BOARD_WIDTH]);
+        });
         //the base points are multiplied by (level + 1) - if count was 0 no score is added
         let base_score_earned = BASE_SCORES[count];
         let score_earned = (self.current_level as u32 + 1) * base_score_earned;
@@ -178,9 +201,9 @@ impl Game {
         mino_state.iter().enumerate().for_each(|(cell_y, row)| {
             row.iter().enumerate().for_each(|(cell_x, val)| {
                 if *val != 0 {
-                    let mut current_pos = self.current_mino_position;
-                    current_pos.0 += cell_x as i8 * 2;
-                    current_pos.1 += cell_y as i8 - 1;
+                    let mut current_pos: BoardXY = self.current_mino_position;
+                    current_pos.0 += cell_x as i16 * 2;
+                    current_pos.1 += cell_y as i16 - 1;
                     current_pos.0 /= 2;
                     self.board_state[current_pos.1.max(0) as usize][current_pos.0 as usize] = self.current_mino.selected_mino;
                 }
@@ -239,12 +262,13 @@ impl Game {
             if let Err(e) = save_top_score(self.current_score) {
                 println!("couldn't save top score file: {e}");
             }
-            self.top_score = self.current_score;
         }
     }
     //input functions
     pub fn slam(&mut self) {
         if self.game_state != STATE_PLAYING { return; }
+        self.move_mino((0, self.slam_offset.1));
+        self.move_down();
     }
     pub fn toggle_paused(&mut self) {
         match self.game_state {
