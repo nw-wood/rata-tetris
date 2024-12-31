@@ -6,7 +6,7 @@ pub struct Mino {
     rotations: Vec<Rotation>,
     pub selected_mino: u8,
     pub current_rotation: usize,
-    pub start_offset: (i8, i8),
+    pub start_offset: BoardXY,
 }
 
 impl Mino {
@@ -71,7 +71,7 @@ impl Mino {
             }
         }
         let mut rotations: Vec<Rotation> = vec![];
-        let mut start_offset: (i8, i8) = (0, 0);
+        let mut start_offset: BoardXY = (0, 0);
         //wish I had access to some of the game state here... pass in reference to current mino then
         //FIX: this should use constant arrays instead of vectors built like this
         match selected_mino {
