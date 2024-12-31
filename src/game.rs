@@ -24,7 +24,7 @@ pub struct Game {
     pub timer_rx: Receiver<()>,
     pub timer_handle: JoinHandle<()>,
     pub slam_offset: BoardXY,
-    pub cleared: bool,
+    pub current_bag: Vec<Mino>,
 }
 
 impl Game {
@@ -35,7 +35,8 @@ impl Game {
         let timer_handle = thread::spawn(move || { game_timer(timer_receiver, timer_sender);});
         timer_tx.send(SIGNAL_PAUSE).unwrap();
 
-        let current_mino = Mino::new(&NO_BLOCK);
+        let mut mino_bag = Mino::new_bag();
+        let current_mino = mino_bag.pop().unwrap();
 
         let game = Self {
             line_count: 0,
@@ -48,20 +49,20 @@ impl Game {
                 }
             },
             statistics: {
-                let mut statistics: Vec<u16> = vec![0; MINO_TYPES as usize - 1];
+                let mut statistics: Vec<u16> = vec![0; MINO_TYPES as usize];
                 statistics[current_mino.selected_mino as usize - 1] += 1;
                 statistics
             },
             board_state: vec![vec![u8::from(0); GAME_BOARD_WIDTH]; GAME_BOARD_HEIGHT],
             game_state: STATE_START_SCREEN,
-            next_mino: Mino::new(&current_mino.selected_mino),
             current_mino_position: current_mino.start_offset,
             current_mino,
+            next_mino: mino_bag.pop().unwrap(),
             timer_tx,
             timer_rx,
             timer_handle,
             slam_offset: NO_OFFSET,
-            cleared: false,
+            current_bag: mino_bag,
         };
 
         let game_state = Arc::new(Mutex::new(game));
@@ -171,7 +172,6 @@ impl Game {
             }
         });
 
-        if count > 0 { self.cleared = true };
         (0..count).for_each(|_| { 
             self.board_state.insert(0, vec![u8::from(0); GAME_BOARD_WIDTH]);
         });
@@ -191,7 +191,10 @@ impl Game {
     fn new_mino(&mut self) {
         self.increase_stat(self.next_mino.selected_mino as usize);
         self.current_mino = self.next_mino.clone();
-        self.next_mino = Mino::new(&self.next_mino.selected_mino);
+        if self.current_bag.is_empty() {
+            self.current_bag = Mino::new_bag();
+        }
+        self.next_mino = self.current_bag.pop().unwrap();
         self.current_mino_position = self.current_mino.start_offset;
         //okay! bug testing time
     }

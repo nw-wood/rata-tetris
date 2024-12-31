@@ -20,9 +20,7 @@ pub const STATE_GAME_OVER: u8 = 2;
 pub const STATE_START_SCREEN: u8 = 3;
 pub type GameState = u8;
 
-pub const REROLL: u8 = 0;
-pub const MINO_TYPES: u8 = 8;
-pub const NO_BLOCK: u8 = 8;
+pub const MINO_TYPES: u8 = 7;
 
 pub const TOP_SCORE_FILENAME: &str = "top_score";
 

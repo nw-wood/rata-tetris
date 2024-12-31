@@ -1,4 +1,4 @@
-use rand::Rng;
+use rand::seq::SliceRandom;
 use crate::consts::*;
 
 #[derive(Clone)]
@@ -55,166 +55,159 @@ impl Mino {
         }
     }
 
-    pub fn new(current_next: &u8) -> Self {
+    pub fn new_bag() -> Vec<Self> {
 
-        let mut rng = rand::thread_rng();
-        //pick a mino
-        let mut selected_mino = rng.gen_range(0..MINO_TYPES);
-        //if it's the same as mino that's next then reroll it, or if a reroll is specified
-        if selected_mino == *current_next || selected_mino == REROLL {
-            loop {
-                //roll for a new block and take the first one that isn't a reroll result
-                selected_mino = rng.gen_range(0..MINO_TYPES);
-                if selected_mino != REROLL {
-                    break;
-                }
+        let mut bag: Vec<Self> = vec![];
+
+       (1..=MINO_TYPES).for_each(|selected_mino| {
+            let mut rotations: Vec<Rotation> = vec![];
+            let mut start_offset: BoardXY = (0, 0);
+            //FIX: this should use constant arrays instead of vectors built like this
+            match selected_mino {
+                T_BLOCK => {
+                    rotations = vec![
+                        vec![
+                            vec![0, 0, 0],
+                            vec![1, 1, 1],
+                            vec![0, 1, 0],
+                        ],
+                        vec![
+                            vec![0, 1, 0],
+                            vec![1, 1, 0],
+                            vec![0, 1, 0],
+                        ],
+                        vec![
+                            vec![0, 1, 0],
+                            vec![1, 1, 1],
+                            vec![0, 0, 0],
+                        ],
+                        vec![
+                            vec![0, 1, 0],
+                            vec![0, 1, 1],
+                            vec![0, 1, 0],
+                        ],
+                    ];
+                    start_offset = (8, 0);
+                },
+                J_BLOCK => {
+                    rotations = vec![
+                        vec![
+                            vec![0, 0, 0],
+                            vec![1, 1, 1],
+                            vec![0, 0, 1],
+                        ],
+                        vec![
+                            vec![0, 1, 0],
+                            vec![0, 1, 0],
+                            vec![1, 1, 0],
+                        ],
+                        vec![
+                            vec![1, 0, 0],
+                            vec![1, 1, 1],
+                            vec![0, 0, 0],
+                        ],
+                        vec![
+                            vec![0, 1, 1],
+                            vec![0, 1, 0],
+                            vec![0, 1, 0],
+                        ],
+                    ];
+                    start_offset = (8, 0);
+                },
+                Z_BLOCK => {
+                    rotations = vec![
+                        vec![
+                            vec![0, 0, 0],
+                            vec![0, 1, 1],
+                            vec![1, 1, 0],
+                        ],
+                        vec![
+                            vec![0, 1, 0],
+                            vec![0, 1, 1],
+                            vec![0, 0, 1],
+                        ],
+                    ];
+                    start_offset = (8, 0);
+                },
+                O_BLOCK => {
+                    rotations = vec![
+                        vec![
+                            vec![1, 1],
+                            vec![1, 1],
+                        ],
+                    ];
+                    start_offset = (8, 1);
+                },
+                S_BLOCK => {
+                    rotations = vec![
+                        vec![
+                            vec![0, 0, 0],
+                            vec![1, 1, 0],
+                            vec![0, 1, 1],
+                        ],
+                        vec![
+                            vec![0, 0, 1],
+                            vec![0, 1, 1],
+                            vec![0, 1, 0],
+                        ],
+                    ];
+                    //was 9
+                    start_offset = (8, 0);
+                },
+                L_BLOCK => {
+                    rotations = vec![
+                        vec![
+                            vec![0, 0, 0],
+                            vec![1, 1, 1],
+                            vec![1, 0, 0],
+                        ],
+                        vec![
+                            vec![1, 1, 0],
+                            vec![0, 1, 0],
+                            vec![0, 1, 0],
+                        ],
+                        vec![
+                            vec![0, 0, 1],
+                            vec![1, 1, 1],
+                            vec![0, 0, 0],
+                        ],
+                        vec![
+                            vec![0, 1, 0],
+                            vec![0, 1, 0],
+                            vec![0, 1, 1],
+                        ],
+                    ];
+                    start_offset = (8, 0);
+                },
+                I_BLOCK => {
+                    rotations = vec![
+                        vec![
+                            vec![0, 0, 0, 0],
+                            vec![0, 0, 0, 0],
+                            vec![1, 1, 1, 1],
+                            vec![0, 0, 0, 0],
+                        ],
+                        vec![
+                            vec![0, 0, 1, 0],
+                            vec![0, 0, 1, 0],
+                            vec![0, 0, 1, 0],
+                            vec![0, 0, 1, 0],
+                        ],
+                    ];
+                    start_offset = (6, -1);
+                },
+                _ => {},
             }
-        }
-        let mut rotations: Vec<Rotation> = vec![];
-        let mut start_offset: BoardXY = (0, 0);
-        //wish I had access to some of the game state here... pass in reference to current mino then
-        //FIX: this should use constant arrays instead of vectors built like this
-        match selected_mino {
-            T_BLOCK => {
-                rotations = vec![
-                    vec![
-                        vec![0, 0, 0],
-                        vec![1, 1, 1],
-                        vec![0, 1, 0],
-                    ],
-                    vec![
-                        vec![0, 1, 0],
-                        vec![1, 1, 0],
-                        vec![0, 1, 0],
-                    ],
-                    vec![
-                        vec![0, 1, 0],
-                        vec![1, 1, 1],
-                        vec![0, 0, 0],
-                    ],
-                    vec![
-                        vec![0, 1, 0],
-                        vec![0, 1, 1],
-                        vec![0, 1, 0],
-                    ],
-                ];
-                start_offset = (8, 0);
-            },
-            J_BLOCK => {
-                rotations = vec![
-                    vec![
-                        vec![0, 0, 0],
-                        vec![1, 1, 1],
-                        vec![0, 0, 1],
-                    ],
-                    vec![
-                        vec![0, 1, 0],
-                        vec![0, 1, 0],
-                        vec![1, 1, 0],
-                    ],
-                    vec![
-                        vec![1, 0, 0],
-                        vec![1, 1, 1],
-                        vec![0, 0, 0],
-                    ],
-                    vec![
-                        vec![0, 1, 1],
-                        vec![0, 1, 0],
-                        vec![0, 1, 0],
-                    ],
-                ];
-                start_offset = (8, 0);
-            },
-            Z_BLOCK => {
-                rotations = vec![
-                    vec![
-                        vec![0, 0, 0],
-                        vec![0, 1, 1],
-                        vec![1, 1, 0],
-                    ],
-                    vec![
-                        vec![0, 1, 0],
-                        vec![0, 1, 1],
-                        vec![0, 0, 1],
-                    ],
-                ];
-                start_offset = (8, 0);
-            },
-            O_BLOCK => {
-                rotations = vec![
-                    vec![
-                        vec![1, 1],
-                        vec![1, 1],
-                    ],
-                ];
-                start_offset = (8, 1);
-            },
-            S_BLOCK => {
-                rotations = vec![
-                    vec![
-                        vec![0, 0, 0],
-                        vec![1, 1, 0],
-                        vec![0, 1, 1],
-                    ],
-                    vec![
-                        vec![0, 0, 1],
-                        vec![0, 1, 1],
-                        vec![0, 1, 0],
-                    ],
-                ];
-                //was 9
-                start_offset = (8, 0);
-            },
-            L_BLOCK => {
-                rotations = vec![
-                    vec![
-                        vec![0, 0, 0],
-                        vec![1, 1, 1],
-                        vec![1, 0, 0],
-                    ],
-                    vec![
-                        vec![1, 1, 0],
-                        vec![0, 1, 0],
-                        vec![0, 1, 0],
-                    ],
-                    vec![
-                        vec![0, 0, 1],
-                        vec![1, 1, 1],
-                        vec![0, 0, 0],
-                    ],
-                    vec![
-                        vec![0, 1, 0],
-                        vec![0, 1, 0],
-                        vec![0, 1, 1],
-                    ],
-                ];
-                start_offset = (8, 0);
-            },
-            I_BLOCK => {
-                rotations = vec![
-                    vec![
-                        vec![0, 0, 0, 0],
-                        vec![0, 0, 0, 0],
-                        vec![1, 1, 1, 1],
-                        vec![0, 0, 0, 0],
-                    ],
-                    vec![
-                        vec![0, 0, 1, 0],
-                        vec![0, 0, 1, 0],
-                        vec![0, 0, 1, 0],
-                        vec![0, 0, 1, 0],
-                    ],
-                ];
-                start_offset = (6, -1);
-            },
-            _ => {},
-        }
-        
-        Self {
-            rotations,
-            selected_mino,
-            current_rotation: 0,
-            start_offset,
-        }
+            bag.push(
+                Self {
+                    rotations,
+                    selected_mino,
+                    current_rotation: 0,
+                    start_offset,
+                }
+            );
+       });
+       bag.shuffle(&mut rand::thread_rng());
+       bag
     }
 }
