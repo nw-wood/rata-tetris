@@ -1,14 +1,8 @@
 //common type aliases
 pub type Rotation = Vec<Vec<u8>>;
 pub type Score = u32;
-pub type BoardXY = (i8, i8);
+pub type BoardXY = (i16, i16);
 pub type BlockIndex = usize;
-
-/* Base points (at level 0):
-Single: 40 points
-Double: 100 points
-Triple: 300 points
-Tetris (4 lines): 1200 points */
 
 pub const BASE_SCORES: [u32; 5] = [0, 40, 100, 300, 1200];
 
@@ -37,10 +31,10 @@ pub const GAME_BOARD_WIDTH: usize = 10;
 pub const GAME_BOARD_HEIGHT: usize = 20;
 
 //directional offsets for the games movement methods
-pub const LEFT_OFFSET: (i8, i8) = (-2, 0);
-pub const RIGHT_OFFSET: (i8, i8) = (2, 0);
-pub const DOWN_OFFSET: (i8, i8) = (0, 1);
-pub const NO_OFFSET: (i8, i8) = (0, 0);
+pub const LEFT_OFFSET:  BoardXY = (-2, 0);
+pub const RIGHT_OFFSET: BoardXY = (2, 0);
+pub const DOWN_OFFSET:  BoardXY = (0, 1);
+pub const NO_OFFSET:    BoardXY = (0, 0);
 
 //match clarity
 pub const ROT_LEFT: u8 = 0;
@@ -84,7 +78,9 @@ r#"   ████      ██      ██  ██    ██████
              ██  ██  ██  ██  ██      ██████       
                ██      ██    ██████  ██    ██  ██ 
 "#;
-pub const CONTROLS_TEXT: &str = " start: space quit: q rot: pgup/dn move: ←→ slam: ↑ drop: ↓"; 
+pub const CONTROLS_TEXT: &str = " start: space quit: q rot: pgup/dn move: ←→ slam: ↑ drop: ↓";
+
+pub const ZOOM_TIP_TEXT: &str = "Tip: On many systems you can adjust the zoom. You can try\nthis by holding down the Ctrl key, and pressing +, -, or \nscrolling the mouse wheel. 💬";
 
 pub const PRECALC_SCREEN: &str = r#"████████████████████████████████████████████████████████████████
 ████████████████████████████████████████████████████████████████
@@ -114,7 +110,7 @@ pub const PRECALC_SCREEN: &str = r#"██████████████�
 ████████████████████████████████████████████████████████████████
 ████████████████████████████████████████████████████████████████"#;
 
-
+pub const SCORE_PADDING: usize = SCREEN_WIDTH as usize - 6;
 
 pub const BORDER_WIDTH_PAD: u16 = 2;
 pub const BORDER_HEIGHT_PAD: u16 = 1;
@@ -123,6 +119,18 @@ pub const BORDER_HEIGHT_PAD: u16 = 1;
 pub const CONTROLS_WIDTH: u16 = SCREEN_WIDTH - 7;
 pub const CONTROLS_HEIGHT: u16 = 0;
 pub const CONTROL_XY: (u16, u16) = (0, SCREEN_HEIGHT - 2);
+
+pub const GAME_OVER_STATS_WIDTH: u16 = SCREEN_WIDTH - 7;
+pub const GAME_OVER_STATS_HEIGHT: u16 = 2;
+pub const GAME_OVER_STATS_XY: (u16, u16) = (0, SCREEN_HEIGHT - 10);
+
+pub const ZOOM_TIP_WIDTH: u16 = SCREEN_WIDTH - 7;
+pub const ZOOM_TIP_HEIGHT: u16 = 4;
+pub const ZOOM_TIP_XY: (u16, u16) = (0, SCREEN_HEIGHT - 10);
+
+pub const NEW_TOP_SCORE_WIDTH: u16 = SCREEN_WIDTH - 7;
+pub const NEW_TOP_SCORE_HEIGHT: u16 = 2;
+pub const NEW_TOP_SCORE_XY: (u16, u16) = (0, SCREEN_HEIGHT - 6);
 
 pub const STATS_INSET_WIDTH: u16 = 14;
 pub const STATS_INSET_HEIGHT: u16 = 22;
@@ -164,6 +172,7 @@ pub const GAME_OVER_TEXT_WIDTH: u16 = 50;
 pub const GAME_OVER_TEXT_HEIGHT: u16 = 12;
 pub const GAME_OVER_TEXT_XY: (u16, u16) = (5, 3);
 
+//rects for the playing screen
 pub const RECT_STATS: usize = 0;
 pub const RECT_LINES: usize = 1;
 pub const RECT_BOARD: usize = 4;
@@ -176,6 +185,9 @@ pub const RECT_GAME_OVER_TEXT: usize = 8;
 pub const RECT_CONTROLS: usize = 9;
 pub const RECT_STATS_INSET: usize = 10;
 pub const RECT_NEXT_INSET: usize = 11;
+pub const RECT_GAME_OVER_STATS: usize = 12;
+pub const RECT_NEW_TOP_SCORE: usize = 13;
+pub const RECT_ZOOM_TIP: usize = 14;
 
 pub const ELEMENTS_XY: (u16, u16) = (2, 1);
 
@@ -185,7 +197,7 @@ pub const TEXT_NEXT: &str = "   NEXT\n \n \n \n ";
 pub const TEXT_LEVEL: &str = "  LEVEL ";
 
 pub const BLOCK: &str = "██";
-pub const EMPTY: &str = "  ";
+/* pub const EMPTY: &str = "  "; */
 pub const SCREEN_WIDTH: u16 = 32 * 2; // x 2 since each cell is 2 chars per block
 pub const SCREEN_HEIGHT: u16 = 28;
 pub const BACKGROUND_COLOR: u8 = 234;
@@ -227,10 +239,10 @@ pub const TEXT_MINO_T: &str = r#"  ██
 
 "#;
 
-pub const TEXT_MINO_Z: &str = r#"████  
+pub const TEXT_MINO_S: &str = r#"████  
   ████"#;
 
-pub const TEXT_MINO_S: &str = r#"  ████
+pub const TEXT_MINO_Z: &str = r#"  ████
 ████"#;
 
 pub const TEXT_MINO_I: &str = r#"████████         
