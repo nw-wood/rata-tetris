@@ -5,16 +5,13 @@ use once_cell::sync::Lazy;
 use crate::game::Game;
 
 use std::{
-    io, 
-    sync::{mpsc::Receiver, Arc, Mutex}, 
-    thread, 
-    time::Duration
+    io, sync::{mpsc::Receiver, Arc, Mutex}, thread, time::Duration
 };
 
 use ratatui::{
     buffer::Buffer,
-    layout::{Constraint, Direction, Layout, Rect},
-    style::{Color, Style},
+    layout::{Constraint, Direction, Layout, Offset, Rect},
+    style::{Color, Style, Stylize},
     text::{Line, Span},
     widgets::{Block, Paragraph, Widget},
     DefaultTerminal
@@ -68,8 +65,8 @@ impl CachedBackground {
             .collect();
         Self {
             widget: Paragraph::new(lines),
-            width: (background_pattern[0].len() * 2) as u16,
-            height: background_pattern.len() as u16,
+            width: ((background_pattern[0].len() - 1) * 2) as u16,
+            height: background_pattern.len() as u16 - 1,
         }
     }
 }
@@ -112,15 +109,19 @@ impl Widget for &Game {
     where
         Self: Sized
     {
+        let bg_color = Color::Indexed(BACKGROUND_COLOR);
+        let alert_block = Block::bordered().style(Style::default().fg(Color::DarkGray).bg(bg_color));
+
         //if the terminal is too small draw a message for now
         if area.width < SCREEN_WIDTH || area.height < SCREEN_HEIGHT {
-            Paragraph::new(Line::from(format!("Terminal must be at least {} x {}!", SCREEN_WIDTH, SCREEN_HEIGHT))).render(area, buf);
+            Paragraph::new(format!("Terminal must be at least {} x {}! \n\n{}", SCREEN_WIDTH, SCREEN_HEIGHT, ZOOM_TIP_TEXT)).block(alert_block).bold().render(area, buf);
             return;
         }
         //helper function to assemble interface rects for reference
         let elements = build_element_rects(&area);
 
         //define some style rules
+        let board_block = Block::bordered().style(Style::default().fg(Color::White).bg(bg_color));
         let bg_color = Color::Indexed(BACKGROUND_COLOR);
         let block = Block::bordered();
         let board_block = Block::bordered().style(Style::default().fg(Color::White).bg(bg_color));
@@ -180,41 +181,62 @@ impl Widget for &Game {
                 //draw the next piece to the next inset
                 let next_mino_id = self.next_mino.selected_mino;
                 let next_mino_style = mino_to_styling(next_mino_id, self.current_level);
-                draw_element(next_mino_style.0.as_str(), &elements[RECT_NEXT_INSET], &block_no_border, &next_mino_style.1, buf);
-        
+                draw_element(next_mino_style.0.as_str(), &elements[RECT_NEXT_INSET], &block_no_border, &next_mino_style.1, buf);                
+
                 //draw the current falling mino onto the screen
                 self.current_mino.get_rotation().iter().enumerate().for_each(|(y, row)| {
                     row.iter().enumerate().for_each(|(x, value)| {
                         if *value != 0 {
                             let board_rect = &elements[RECT_BOARD];
 
-                            let cell_screen_position = (
-                                board_rect.x as i8 + self.current_mino_position.0,
-                                board_rect.y as i8 + self.current_mino_position.1,
+                            let cell_screen_position: BoardXY = (
+                                board_rect.x as i16 + self.current_mino_position.0,
+                                board_rect.y as i16 + self.current_mino_position.1,
                             );
 
                             let cell_rect = Rect::new(
-                                ((x as i8 * 2) + cell_screen_position.0 + 1) as u16,
-                                (y as i8 + cell_screen_position.1) as u16,
+                                ((x as i16 * 2) + cell_screen_position.0 as i16 + 1).max(0) as u16,
+                                (y as i16 + cell_screen_position.1 as i16).max(0) as u16,
                                 2,
                                 1
                             );
 
-                            if cell_rect.y <= board_rect.y {
-                                return;
-                            }
-        
+                            
+                            let slamming_by = self.slam_offset.1 as u16;
+                            let ghost_rect = cell_rect.offset(Offset { x: 0, y: slamming_by as i32 });
                             let style = mino_to_styling(self.current_mino.selected_mino, self.current_level);
+                            draw_element(BLOCK, &ghost_rect, &block, &style.1, buf); //this accidentally made a really nice colored ghost piece out of borders amusingly
+                            if cell_rect.y <= board_rect.y { return; } //don't draw pieces if off screen
                             draw_element(BLOCK, &cell_rect, &block_no_border, &style.1, buf);
-                            //draw_element(BLOCK, &cell_rect, &block, &style.1, buf); this accidentally made a really nice colored ghost piece out of borders amusingly
+                            
                         }
                     });
                 });
             }
             //draw corresponding game screens for the other states
             STATE_PAUSED => draw_element(BIG_TEXT_PAUSED, &elements[RECT_BIG_TEXT], &block, &element_style, buf),
-            STATE_START_SCREEN => draw_element(BIG_TEXT_TETRIS, &elements[RECT_BIG_TEXT], &block, &element_style, buf),
-            STATE_GAME_OVER => draw_element(GAME_OVER_TEXT, &elements[RECT_GAME_OVER_TEXT], &block, &element_style, buf), //need to show score + lines obtained
+            STATE_START_SCREEN => {
+                draw_element(BIG_TEXT_TETRIS, &elements[RECT_BIG_TEXT], &block, &element_style, buf);
+                draw_element(ZOOM_TIP_TEXT, &elements[RECT_ZOOM_TIP], &block, &Style::new().bg(bg_color).fg(Color::DarkGray), buf);
+            },
+            STATE_GAME_OVER => {
+                
+                let score_message = if self.current_score > self.top_score {
+                    let message = format!("🎆 New top score set at {}! 🎇", self.current_score);
+                    format!("{message:^SCORE_PADDING$}") // ?
+                } else {
+                    let message = format!("You scored {} points.", self.current_score);
+                    format!("{message:^SCORE_PADDING$}")
+                };
+
+                let stats_uncentered = format!("Reach level {}, and cleared {} lines.", self.current_level, self.line_count);
+                let stats_message = format!("{stats_uncentered:^SCORE_PADDING$}");
+
+                draw_element(GAME_OVER_TEXT, &elements[RECT_GAME_OVER_TEXT], &block, &element_style, buf);
+                draw_element(score_message.as_str(), &elements[RECT_NEW_TOP_SCORE], &block, &element_style, buf);
+                draw_element(stats_message.as_str(), &elements[RECT_GAME_OVER_STATS], &block, &element_style, buf);
+
+            }
             _ => {}
         }
     }
@@ -225,22 +247,23 @@ pub fn draw_ui(
 	game_state: Arc<Mutex<Game>>, 
 	stop_receiver: Receiver<()>
 ) -> io::Result<()> {
-    let mut frame_count: usize = 0;
     loop {
-        //60 frames per second hard limit
         thread::sleep(Duration::from_millis(16));
-        frame_count += 1;
-        //println!("frame_count: {frame_count}");
         match stop_receiver.try_recv() {
             Err(std::sync::mpsc::TryRecvError::Empty) => {}, 
             _ => break,
         }
 
         terminal.draw(|frame| {
+
             frame.render_widget(&*BACKGROUND, frame.area());
+
             let mut game = game_state.lock().unwrap();
+
             game.update();
+
             frame.render_widget(&*game, frame.area());
+
         })
         .map(|_| ())?;
     }
@@ -277,6 +300,9 @@ fn build_element_rects(area: &Rect) -> Vec<Rect> {
     rects.push(create_rect(CONTROL_XY, CONTROLS_WIDTH, CONTROLS_HEIGHT));
     rects.push(create_rect(STATS_INSET_XY, STATS_INSET_WIDTH, STATS_INSET_HEIGHT));
     rects.push(create_rect(NEXT_INSET_XY, NEXT_INSET_WIDTH, NEXT_INSET_HEIGHT));
+    rects.push(create_rect(GAME_OVER_STATS_XY, GAME_OVER_STATS_WIDTH, GAME_OVER_STATS_HEIGHT));
+    rects.push(create_rect(NEW_TOP_SCORE_XY, NEW_TOP_SCORE_WIDTH, NEW_TOP_SCORE_HEIGHT));
+    rects.push(create_rect(ZOOM_TIP_XY, ZOOM_TIP_WIDTH, ZOOM_TIP_HEIGHT));
 
     rects
 }
