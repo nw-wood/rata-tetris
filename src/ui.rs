@@ -121,7 +121,6 @@ impl Widget for &Game {
         let elements = build_element_rects(&area);
 
         //define some style rules
-        let board_block = Block::bordered().style(Style::default().fg(Color::White).bg(bg_color));
         let bg_color = Color::Indexed(BACKGROUND_COLOR);
         let block = Block::bordered();
         let board_block = Block::bordered().style(Style::default().fg(Color::White).bg(bg_color));
@@ -172,18 +171,28 @@ impl Widget for &Game {
                             2,
                             1,
                         );
-        
-                        let style = mino_to_styling(*value, self.current_level);
-                        Paragraph::new(BLOCK).style(style.1).render(cell_rect, buf);
+
+                        //styling for all other blocks
+                        let mut style = mino_to_styling(*value, self.current_level);
+                        style.0 = BLOCK.to_string();
+
+                        //styling rules for cleared rows
+                        if self.rows_cleared.contains(&cell_y) { 
+                            style.0 = CLEAR.to_string();
+                            style.1 = line_clear_style(self.current_level);
+                        };
+
+                        Paragraph::new(style.0).style(style.1).render(cell_rect, buf);
                     });
                 });
                 
-                //draw the next piece to the next inset
-                let next_mino_id = self.next_mino.selected_mino;
+                //draw the next piece to the next inset - change which appears in the box if rows are clearing
+                let next_mino_id = if self.rows_cleared.is_empty() { self.next_mino.selected_mino } else { self.current_mino.selected_mino };
                 let next_mino_style = mino_to_styling(next_mino_id, self.current_level);
                 draw_element(next_mino_style.0.as_str(), &elements[RECT_NEXT_INSET], &block_no_border, &next_mino_style.1, buf);                
 
-                //draw the current falling mino onto the screen
+                //draw the current falling mino onto the screen - skip doing this at all if paused for row clears
+                if !self.rows_cleared.is_empty() { return };
                 self.current_mino.get_rotation().iter().enumerate().for_each(|(y, row)| {
                     row.iter().enumerate().for_each(|(x, value)| {
                         if *value != 0 {
@@ -335,21 +344,33 @@ fn mino_to_styling(id: u8, current_level: u8) -> (String, Style) {
         _ => "",
     };
 
-    let palette = [
-            PALETTE_BLURPLE,
-            PALETTE_LIME,
-            PALETTE_PINK,
-            PALETTE_SWAMP,
-            PALETTE_MELON,
-            PALETTE_LAKE,
-            PALETTE_FACTORY,
-            PALETTE_MUAVE,
-            PALETTE_NARU,
-            PALETTE_CREAM
-        ][(current_level % 10) as usize];
+    let palette = get_level_pallete(current_level);
 
     let bg_color = Color::Indexed(BACKGROUND_COLOR);
     let fg_color = if id == 0 { bg_color } else { Color::Indexed(palette[id as usize - 1]) };
 
     (mino_text.to_string(), Style::default().fg(fg_color).bg(bg_color))
+}
+
+fn line_clear_style(current_level: u8) -> Style {
+    let palette = get_level_pallete(current_level);
+    let color_index = palette[LEVEL_PALLETE_LENGH - 1];
+    let bg_color = Color::Indexed(BACKGROUND_COLOR);
+    let fg_color = Color::Indexed(color_index);
+    Style::new().fg(fg_color).bg(bg_color)
+}
+
+fn get_level_pallete(current_level: u8) -> [u8; LEVEL_PALLETE_LENGH]{
+    [
+        PALETTE_BLURPLE,
+        PALETTE_LIME,
+        PALETTE_PINK,
+        PALETTE_SWAMP,
+        PALETTE_MELON,
+        PALETTE_LAKE,
+        PALETTE_FACTORY,
+        PALETTE_MUAVE,
+        PALETTE_NARU,
+        PALETTE_CREAM
+    ][(current_level % 10) as usize]
 }

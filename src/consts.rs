@@ -4,6 +4,21 @@ pub type Score = u32;
 pub type BoardXY = (i16, i16);
 pub type BlockIndex = usize;
 
+/* pub const SOUND_STARTUP: &str = "startup";
+pub const SOUND_PAUSE: &str = "pause";
+pub const SOUND_RESUME: &str = "resume";
+pub const SOUND_PLAY: &str = "play";
+pub const SOUND_GAME_OVER: &str = "game_over";
+pub const SOUND_MOVE_LEFT: &str = "left_movement";
+pub const SOUND_MOVE_RIGHT: &str = "right_movement";
+pub const SOUND_ROTATE_LEFT: &str = "left_rotation";
+pub const SOUND_ROTATE_RIGHT: &str = "right_rotation";
+pub const SOUND_SLAM: &str = "slam";
+pub const SOUND_PLACE: &str = "place";
+pub const SOUND_LINE_CLEAR: &str = "clear_line";
+pub const SOUND_TETRIS: &str = "tetris_sound";
+pub const SOUND_NEW_TOP_SCORE: &str = "top_score"; */
+
 pub const BASE_SCORES: [u32; 5] = [0, 40, 100, 300, 1200];
 
 pub const J_BLOCK: u8 = 1;
@@ -195,21 +210,24 @@ pub const TEXT_NEXT: &str = "   NEXT\n \n \n \n ";
 pub const TEXT_LEVEL: &str = "  LEVEL ";
 
 pub const BLOCK: &str = "██";
+pub const CLEAR: &str = "░░";
 /* pub const EMPTY: &str = "  "; */
 pub const SCREEN_WIDTH: u16 = 32 * 2; // x 2 since each cell is 2 chars per block
 pub const SCREEN_HEIGHT: u16 = 28;
 pub const BACKGROUND_COLOR: u8 = 234;
 
-pub const PALETTE_BLURPLE: [u8; 7] =[069, 063, 057, 069, 075, 033, 039];
-pub const PALETTE_LIME: [u8; 7] =   [040, 046, 047, 034, 028, 022, 082];
-pub const PALETTE_PINK: [u8; 7] =   [219, 213, 207, 201, 200, 199, 206];
-pub const PALETTE_SWAMP: [u8; 7] =  [033, 063, 027, 039, 041, 047, 046];
-pub const PALETTE_MELON: [u8; 7] =  [085, 120, 048, 199, 200, 201, 207];
-pub const PALETTE_LAKE: [u8; 7] =   [069, 063, 057, 085, 079, 120, 115];
-pub const PALETTE_FACTORY: [u8; 7] =[242, 244, 249, 196, 160, 124, 202];
-pub const PALETTE_MUAVE: [u8; 7] =  [052, 088, 089, 091, 093, 141, 129];
-pub const PALETTE_NARU: [u8; 7] =   [196, 160, 124, 020, 027, 111, 075];
-pub const PALETTE_CREAM: [u8; 7] =  [222, 216, 221, 202, 196, 160, 228];
+
+pub const LEVEL_PALLETE_LENGH: usize = 8;
+pub const PALETTE_BLURPLE: [u8; LEVEL_PALLETE_LENGH] =[069, 063, 057, 069, 075, 033, 039, 081]; 
+pub const PALETTE_LIME: [u8; LEVEL_PALLETE_LENGH] =   [040, 046, 047, 034, 028, 022, 082, 082 + 2]; //most + 2 are fine - some adjusted for custom
+pub const PALETTE_PINK: [u8; LEVEL_PALLETE_LENGH] =   [219, 213, 207, 201, 200, 199, 206, 205];
+pub const PALETTE_SWAMP: [u8; LEVEL_PALLETE_LENGH] =  [033, 063, 027, 039, 041, 047, 046, 046 + 2];
+pub const PALETTE_MELON: [u8; LEVEL_PALLETE_LENGH] =  [085, 120, 048, 199, 200, 201, 207, 207 + 2];
+pub const PALETTE_LAKE: [u8; LEVEL_PALLETE_LENGH] =   [069, 063, 057, 085, 079, 120, 115, 115 + 2];
+pub const PALETTE_FACTORY: [u8; LEVEL_PALLETE_LENGH] =[242, 244, 249, 196, 160, 124, 202, 202 + 2];
+pub const PALETTE_MUAVE: [u8; LEVEL_PALLETE_LENGH] =  [052, 088, 089, 091, 093, 141, 129, 129 + 2];
+pub const PALETTE_NARU: [u8; LEVEL_PALLETE_LENGH] =   [196, 160, 124, 020, 027, 111, 075, 214];
+pub const PALETTE_CREAM: [u8; LEVEL_PALLETE_LENGH] =  [222, 216, 221, 202, 196, 160, 228, 228 + 2];
 
 
 /* pub const J_BLOCK: u8 = 1;

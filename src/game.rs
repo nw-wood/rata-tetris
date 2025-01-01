@@ -8,6 +8,7 @@ use dirs::home_dir;
 
 use crate::minos::Mino;
 use crate::consts::*;
+//use crate::audio::AudioPlayer;
 
 pub struct Game {
     pub line_count: u16,
@@ -25,14 +26,26 @@ pub struct Game {
     pub timer_handle: JoinHandle<()>,
     pub slam_offset: BoardXY,
     pub current_bag: Vec<Mino>,
+    pub rows_cleared: Vec<usize>,
+    /* audio_sender: Sender<String>,
+    audio_handle: JoinHandle<()>, */
+    //game_audio: AudioPlayer, can't do this because of thread safety apparently!
 }
 
 impl Game {
     pub fn new() -> Arc<Mutex<Self>> {
+        
 
+        //open up a thread for the game timer
         let (timer_tx, timer_receiver) = mpsc::channel();
         let (timer_sender, timer_rx) = mpsc::channel();
         let timer_handle = thread::spawn(move || { game_timer(timer_receiver, timer_sender);});
+
+       /*  //open up a thread of the audio player
+        let (audio_sender, audio_reciever) = mpsc::channel();
+        let audio_handle = thread::spawn(move || { game_audio_player(audio_reciever) });
+        audio_sender.send(SOUND_STARTUP.to_string()).unwrap(); */
+
         timer_tx.send(SIGNAL_PAUSE).unwrap();
 
         let mut mino_bag = Mino::new_bag();
@@ -63,13 +76,22 @@ impl Game {
             timer_handle,
             slam_offset: NO_OFFSET,
             current_bag: mino_bag,
+            rows_cleared: vec![],
+            /* audio_sender,
+            audio_handle, */
+            //game_audio: AudioPlayer::new() no
         };
 
         let game_state = Arc::new(Mutex::new(game));
         game_state
     }
 
+    /* fn play_sound(&self, sound: &str) {
+        self.audio_sender.send(sound.to_string()).unwrap();
+    } */
+
     pub fn start_game(&mut self) {
+        //self.play_sound(SOUND_STARTUP);
         self.game_state = STATE_PLAYING;
         self.timer_tx.send(SIGNAL_UNPAUSE).unwrap();
     }
@@ -146,6 +168,11 @@ impl Game {
 
     fn move_mino(&mut self, change_offset: BoardXY) {
         if !self.collision(change_offset, self.current_mino.get_rotation()) {
+            /* match change_offset {
+                LEFT_OFFSET => self.play_sound(SOUND_MOVE_LEFT),
+                RIGHT_OFFSET => self.play_sound(SOUND_MOVE_RIGHT),
+                _ => {}
+            } */
             //println!("move: {}, {}", change_offset.0, change_offset.1);
             self.current_mino_position.0 += change_offset.0;
             self.current_mino_position.1 += change_offset.1;
@@ -161,20 +188,64 @@ impl Game {
     }
 
     fn check_rows(&mut self) {
+        //if the code below this has found row clears this will run on the next update
+        if !self.rows_cleared.is_empty() {
 
+            /* let count = self.rows_cleared.len();
+            let sound = if count == 4 { SOUND_TETRIS } else { SOUND_LINE_CLEAR};
+            self.play_sound(sound);  */
+
+            //copy of the state
+            let rows_to_clear = self.rows_cleared.clone();
+            //remove each row in the list from the board state in reverse order
+            rows_to_clear.iter().enumerate().rev().for_each(|(clear_index, row_index)| {
+                self.rows_cleared.remove(clear_index);
+                self.board_state.remove(*row_index);
+            });
+
+            //bring bag this inserting code but instead of using count use the self.rows_cleared len
+            (0..rows_to_clear.len()).for_each(|_| { 
+                self.board_state.insert(0, vec![u8::from(0); GAME_BOARD_WIDTH]);
+            });
+
+            //clean up the vec, pause the game timer, sleep this thread, and then unpause the game
+            let millis_base: u64 = 300;
+            let millis_added: u64 = 100 * self.rows_cleared.len() as u64;
+            let sleep_duration_in_millis: u64 = millis_base + millis_added;
+            
+            self.rows_cleared = vec![];
+            self.timer_tx.send(SIGNAL_PAUSE).unwrap();
+            thread::sleep(Duration::from_millis(sleep_duration_in_millis));
+            self.timer_tx.send(SIGNAL_UNPAUSE).unwrap();
+
+            //go go gadget morning brain!
+            //this code works, but visually it does not, and also input is allowed to be sent during this pause and it shoudn't
+
+        }
+
+        //detect lines ready to be cleared
         let state = self.board_state.clone();
         let mut count = 0;
-        state.iter().enumerate().rev().for_each(|(index, row)| {
+        //used to go in reverse, now go normal
+        state.iter().enumerate().for_each(|(index, row)| {
             if row.iter().all(|cell| *cell != 0) {
+                //remove the row that's at index
                 self.board_state.remove(index);
-                count += 1;
+                //insert an empty row at that index
+                self.board_state.insert(index, vec![u8::from(0); GAME_BOARD_WIDTH]);
+                //push the cleared row to a vector to check after a draw has happened
+                self.rows_cleared.push(index);
                 self.increase_lines();
+                //still store a count to increase the score
+                count += 1;
             }
         });
 
-        (0..count).for_each(|_| { 
+        //this insert gets removed since it's going to be handled differently
+        /* (0..count).for_each(|_| { 
             self.board_state.insert(0, vec![u8::from(0); GAME_BOARD_WIDTH]);
-        });
+        }); */
+
         //the base points are multiplied by (level + 1) - if count was 0 no score is added
         let base_score_earned = BASE_SCORES[count];
         let score_earned = (self.current_level as u32 + 1) * base_score_earned;
@@ -200,6 +271,7 @@ impl Game {
     }
 
     fn place(&mut self) {
+        //self.play_sound(SOUND_PLACE);
         let mino_state = self.current_mino.get_rotation();
         mino_state.iter().enumerate().for_each(|(cell_y, row)| {
             row.iter().enumerate().for_each(|(cell_x, val)| {
@@ -215,8 +287,14 @@ impl Game {
     }
     
     fn rotate_mino(&mut self, direction: u8) {
+
         let next_rotation = self.current_mino.next_rotation(direction).clone();
         if !self.collision(NO_OFFSET, &next_rotation) {
+            /* match direction {
+                ROT_LEFT => self.play_sound(SOUND_ROTATE_LEFT),
+                ROT_RIGHT => self.play_sound(SOUND_ROTATE_RIGHT),
+                _=> {}
+            } */
             self.current_mino.rotate(direction);
         }
     }
@@ -256,30 +334,37 @@ impl Game {
     }
 
     fn game_over(&mut self) {
+        //self.play_sound(SOUND_GAME_OVER);
         self.game_state = STATE_GAME_OVER;
         self.timer_tx.send(SIGNAL_RESET).unwrap();
         self.timer_tx.send(SIGNAL_PAUSE).unwrap();
         self.board_state = vec![vec![u8::from(0); GAME_BOARD_WIDTH]; GAME_BOARD_HEIGHT];
 
         if self.top_score < self.current_score {
+            //self.play_sound(SOUND_NEW_TOP_SCORE);
             if let Err(e) = save_top_score(self.current_score) {
                 println!("couldn't save top score file: {e}");
             }
+        } else {
+            //self.play_sound(SOUND_GAME_OVER);
         }
     }
     //input functions
     pub fn slam(&mut self) {
         if self.game_state != STATE_PLAYING { return; }
+        //self.play_sound(SOUND_SLAM);
         self.move_mino((0, self.slam_offset.1));
         self.move_down();
     }
     pub fn toggle_paused(&mut self) {
         match self.game_state {
             STATE_PAUSED => {
+                //self.play_sound(SOUND_RESUME);
                 self.game_state = STATE_PLAYING;
                 self.timer_tx.send(SIGNAL_UNPAUSE).unwrap()
             },
             STATE_PLAYING => {
+                //self.play_sound(SOUND_PAUSE);
                 self.game_state = STATE_PAUSED;
                 self.timer_tx.send(SIGNAL_PAUSE).unwrap();
             },
@@ -396,3 +481,14 @@ fn game_timer(timer_receiver: Receiver<u8>, timer_sender: Sender<()>) {
         }
     }    
 }
+
+/* fn game_audio_player(receiver: Receiver<String>) {
+    let audio_player = AudioPlayer::new();
+    loop {
+        thread::sleep(Duration::from_millis(50));
+        if let Ok(message) = receiver.try_recv() {
+            if message == "stop" { break; }
+            audio_player.play_sound(message);
+        }
+    }
+} */
