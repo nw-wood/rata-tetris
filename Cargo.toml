@@ -8,7 +8,7 @@ repository = "https://github.com/nw-wood/rata-tetris"
 #documentation = "https://docs.rs/rata-tetris"
 license = "MIT"
 keywords = ["tetris", "game", "rust", "terminal", "UI"]
-categories = ["game", "terminal", "rendering", "data-structures"]
+categories = ["games", "command-line-utilities", "rendering", "data-structures"]
 readme = "README.md"
 
 [dependencies]
