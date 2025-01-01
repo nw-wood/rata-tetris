@@ -52,13 +52,6 @@ This project implements a Tetris-like game written in Rust. Below is a brief ove
 cargo run
 ```
 
-### Testing
-
-Run tests to ensure functionality:
-```sh
-cargo test
-```
-
 ## Contributing
 
 1. Fork the repository.
