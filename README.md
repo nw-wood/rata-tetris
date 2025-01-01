@@ -70,3 +70,4 @@ This project is licensed under the MIT License. See the `LICENSE` file for detai
 - [Rust Book](https://doc.rust-lang.org/book/) for excellent documentation.
 - Contributors and open-source libraries used in this project.
 
+[crates.io page](https://crates.io/crates/rata-tetris)
